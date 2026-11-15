@@ -597,22 +597,6 @@ impl Validator<'_> {
                 ))
             })?,
         };
-        if policy != Policy::Approve {
-            let approve_only = [
-                ("justification", t.justification.is_some()),
-                ("highlight", t.highlight.is_some()),
-                ("approvers", t.approvers.is_some()),
-                ("require", t.require.is_some()),
-                ("on_deny", t.on_deny.is_some()),
-                ("expiry", t.expiry.is_some()),
-                ("mode", t.mode.is_some()),
-            ];
-            if let Some((field, _)) = approve_only.iter().find(|(_, set)| *set) {
-                return Err(err(format!(
-                    "{at} sets `{field}`, which only applies to policy = \"approve\""
-                )));
-            }
-        }
         let justification_required = match t.justification.as_deref() {
             None | Some("optional") => false,
             Some("required") => true,
