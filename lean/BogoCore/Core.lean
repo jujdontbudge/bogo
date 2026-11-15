@@ -418,7 +418,8 @@ def onApproval (s : State) (a : ApproverId) (r : ReqId) (alg : UInt16) (proof : 
         match findApprover s a with
         | none => (s, [.ignored r a .notEligible])
         | some ap =>
-          if !memB a q.eligible || !(ap.alg == alg) then (s, [.ignored r a .notEligible])
+          if !memB a q.eligible || memB a q.denied || !(ap.alg == alg) then
+            (s, [.ignored r a .notEligible])
           else if q.counted.any (fun e => eqB e.id a) then (s, [.ignored r a .duplicate])
           else if !verify ap.alg ap.pk (recMsg q) proof then
             (s, [.ignored r a .badSignature])
@@ -446,8 +447,11 @@ def onDenial (s : State) (a : ApproverId) (r : ReqId) (note : Option String) :
         match q.denyRule with
         | .anyDenial => endWhere s (isReq r) .denied (.denied note)
         | .whenUnreachable =>
-          let q' := { q with denied := a :: q.denied }
-          let s' := setReq s r (fun x => { x with denied := q'.denied })
+          -- A denial withdraws that approver: it can no longer approve, and an approval it
+          -- gave earlier no longer counts.
+          let q' := { q with denied := a :: q.denied,
+                             counted := q.counted.filter (fun e => !eqB e.id a) }
+          let s' := setReq s r (fun x => { x with denied := q'.denied, counted := q'.counted })
           if reachable s' q' < q.requirement.need then
             endWhere s' (isReq r) .denied (.denied note)
           else (s', [])
@@ -555,10 +559,10 @@ def allowedGate (s : State) (cr : CallRec) (name u t : String) : Bool :=
     (resolve s.cfg (agentName s sess.agent) name).kind == .allow
 
 /-- At the gate, a counted approval stands if its approver was eligible when the request was
-admitted, is registered now with the key it signed with and a name the policy in force now
+admitted, has not denied it, is registered now with the key it signed with and a name the policy in force now
 makes eligible, and its proof verifies over this request's exact bytes. -/
 def standsNow (s : State) (q : ReqRec) (pol : ToolPolicy) (e : Counted) : Bool :=
-  memB e.id q.eligible &&
+  memB e.id q.eligible && !memB e.id q.denied &&
   s.approvers.any (fun a => eqB a.id e.id && a.alg == e.alg && eqB a.pk e.pk &&
     (pol.approvers.isEmpty || pol.approvers.contains a.name)) &&
   verify e.alg e.pk (recMsg q) e.proof

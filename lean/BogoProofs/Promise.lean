@@ -245,7 +245,7 @@ is `allow` right now (and the owner wrote that `allow`), or a protected request 
 requirement is met right now: there is a list `S` of approvers with distinct IDs, at least as
 many as both the requirement the request was admitted with and the one in force now need
 (1 for any-of, k for k-of-n), each registered now, eligible for this request and under the
-policy in force now, and each having approved exactly this request's signed bytes (A1). The
+policy in force now, none having denied it, and each having approved exactly this request's signed bytes (A1). The
 forwarded upstream, tool and arguments are the request's. -/
 theorem approved {bogoId bootId : ByteArray} {xs : List Input} {i : Nat} {c : CallId}
     {r : Option ReqId} {u t : String} {args : Option JVal} {seq : Nat}
@@ -263,7 +263,7 @@ theorem approved {bogoId bootId : ByteArray} {xs : List Input} {i : Nat} {c : Ca
         ∃ S : List Approver, (S.map (·.id)).Nodup ∧
           (resolve s.cfg (agentName s q.req.agentId) q.name).requirement.need ≤ S.length ∧
           q.requirement.need ≤ S.length ∧
-          ∀ ap ∈ S, ap ∈ s.approvers ∧ ap.id ∈ q.eligible ∧
+          ∀ ap ∈ S, ap ∈ s.approvers ∧ ap.id ∈ q.eligible ∧ ap.id ∉ q.denied ∧
             ((resolve s.cfg (agentName s q.req.agentId) q.name).approvers = [] ∨
               ap.name ∈ (resolve s.cfg (agentName s q.req.agentId) q.name).approvers) ∧
             OwnerApproved ap.alg ap.pk (sigMsg (encode q.req))) := by
@@ -278,16 +278,18 @@ theorem approved {bogoId bootId : ByteArray} {xs : List Input} {i : Nat} {c : Ca
     obtain ⟨M, hM, hM'⟩ := choose_list (k := (·.id)) (g := (·.id))
       (P := fun (_ : Counted) (ap : Approver) =>
         ap ∈ (before (Boot bogoId bootId) xs i).approvers ∧ ap.id ∈ q.eligible ∧
+        ap.id ∉ q.denied ∧
         ((resolve (before (Boot bogoId bootId) xs i).cfg
             (agentName (before (Boot bogoId bootId) xs i) q.req.agentId) q.name).approvers = [] ∨
           ap.name ∈ (resolve (before (Boot bogoId bootId) xs i).cfg
             (agentName (before (Boot bogoId bootId) xs i) q.req.agentId) q.name).approvers) ∧
         OwnerApproved ap.alg ap.pk (sigMsg (encode q.req))) Sc (by
       intro e' he'
-      obtain ⟨helig, ⟨ap, hap, hid, halg, hpk, hname⟩, hv⟩ := standsNow_spec (hSc e' he').2
+      obtain ⟨helig, hden, ⟨ap, hap, hid, halg, hpk, hname⟩, hv⟩ :=
+        standsNow_spec (hSc e' he').2
       have hA := A1_unforgeable _ _ _ _ hv
       rw [← halg, ← hpk] at hA
-      exact ⟨ap, ⟨hap, hid ▸ helig, hname, hA⟩, hid⟩)
+      exact ⟨ap, ⟨hap, hid ▸ helig, hid ▸ hden, hname, hA⟩, hid⟩)
     have hlen : M.length = Sc.length := by
       have := congrArg List.length hM; simpa using this
     obtain ⟨hm, hn⟩ := findReq_spec hq

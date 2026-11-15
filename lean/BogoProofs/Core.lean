@@ -92,15 +92,16 @@ theorem allowedGate_spec {s : State} {cr : CallRec} {name u t : String}
 /-- What `standsNow` checks, spelled out. -/
 theorem standsNow_spec {s : State} {q : ReqRec} {pol : ToolPolicy} {e : Counted}
     (h : standsNow s q pol e = true) :
-    e.id ∈ q.eligible ∧
+    e.id ∈ q.eligible ∧ e.id ∉ q.denied ∧
       (∃ a ∈ s.approvers, a.id = e.id ∧ a.alg = e.alg ∧ a.pk = e.pk ∧
         (pol.approvers = [] ∨ a.name ∈ pol.approvers)) ∧
       verify e.alg e.pk (sigMsg (encode q.req)) e.proof = true := by
   simp only [standsNow, recMsg, Bool.and_eq_true, memB_iff, List.any_eq_true] at h
-  obtain ⟨⟨h1, a, ha, h2⟩, h3⟩ := h
+  obtain ⟨⟨⟨h1, h0⟩, a, ha, h2⟩, h3⟩ := h
   simp only [eqB_iff, beq_iff_eq, Bool.or_eq_true, List.isEmpty_iff,
     List.contains_iff_mem] at h2
-  exact ⟨h1, ⟨a, ha, h2.1.1.1, h2.1.1.2, h2.1.2, h2.2⟩, h3⟩
+  refine ⟨h1, fun hd => ?_, ⟨a, ha, h2.1.1.1, h2.1.1.2, h2.1.2, h2.2⟩, h3⟩
+  rw [show memB e.id q.denied = true from memB_iff.mpr hd] at h0; cases h0
 
 /-- Distinct standing approvals, enough for both requirements. -/
 theorem gateMet_spec {s : State} {q : ReqRec} {pol : ToolPolicy} (h : gateMet s q pol = true) :

@@ -140,6 +140,6 @@ theorem approved_bytes {bogoId bootId : ByteArray} {bs : List ByteArray} {i : Na
   · cases hr
   · cases hr
     exact ⟨q, hq, hu, ht, ha, S, hnd, hn, fun ap hap =>
-      ⟨(hS ap hap).1, (hS ap hap).2.1, (hS ap hap).2.2.2⟩⟩
+      ⟨(hS ap hap).1, (hS ap hap).2.1, (hS ap hap).2.2.2.2⟩⟩
 
 end Bogo.Proofs
