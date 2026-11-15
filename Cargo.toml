@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/bogo-json", "crates/bogo-config", "crates/bogo-e2e", "crates/bogo-verify", "crates/bogo-relay-proto", "crates/bogo-relay", "crates/bogo-apns", "crates/bogo-attest"]
+members = ["crates/bogo-json", "crates/bogo-config", "crates/bogo-e2e", "crates/bogo-verify", "crates/bogo-relay-proto", "crates/bogo-relay", "crates/bogo-apns", "crates/bogo-attest", "crates/bogo-filter", "crates/bogo-upstream"]
 
 [workspace.package]
 version = "0.1.0"
@@ -16,7 +16,7 @@ toml = "1"
 # MCP framing, results and config views only; never tool arguments (ARCHITECTURE §3.2).
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 # The gate depends on rmcp internals, so it is pinned exactly (ARCHITECTURE §9).
-rmcp = "=3.10.0"
+rmcp = { version = "=3.10.0", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

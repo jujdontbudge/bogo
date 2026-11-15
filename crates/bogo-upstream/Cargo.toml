@@ -1,0 +1,28 @@
+[package]
+name = "bogo-upstream"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+bogo-json.workspace = true
+bogo-config.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rmcp = { workspace = true, features = ["client", "transport-streamable-http-client", "reqwest"] }
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream"] }
+futures = "0.3"
+base64 = "0.22"
+regex = "1"
+tracing = "0.1"
+http = "1"
+sse-stream = "0.2"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+bogo-filter = { path = "../bogo-filter" }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
