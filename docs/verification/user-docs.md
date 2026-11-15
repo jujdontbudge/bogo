@@ -156,6 +156,8 @@ product pass. All probe daemons were stopped; no code was changed.
 
 ## Reported bug: dangling symlink path secret
 
+**Fixed after this record** in `c18efd8`: the daemon now follows a dangling link's target, and the reproduction below is refused with "path secret auth must live inside BOGO home". A link to a folder inside BOGO home is still accepted.
+
 `crates/bogo-daemon/src/owner.rs`, `normalize` and `load`: when `canonicalize`
 fails for a dangling symlink, recursive parent normalization can retain the
 symlink name inside BOGO home. The path-secret containment check then accepts
