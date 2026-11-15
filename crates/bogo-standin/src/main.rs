@@ -305,6 +305,10 @@ impl Mac {
             return Ok(vec![]);
         }
         self.append(vec![LogEvent::ApproverRevoked { id: Hex::of(&id), by }]).await?;
+        // A revoked approver's earlier approvals no longer count toward a pending threshold.
+        for r in self.reqs.iter_mut().filter(|r| r.state == State::Pending) {
+            r.counted.remove(&id);
+        }
         let dead = self.unreachable();
         if !dead.is_empty() {
             self.append(
