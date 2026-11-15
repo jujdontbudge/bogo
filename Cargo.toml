@@ -1,0 +1,25 @@
+[workspace]
+resolver = "3"
+members = ["crates/bogo-json", "crates/bogo-config"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[workspace.dependencies]
+bogo-json = { path = "crates/bogo-json" }
+bogo-config = { path = "crates/bogo-config" }
+serde = { version = "1", features = ["derive"] }
+toml = "1"
+# MCP framing, results and config views only; never tool arguments (ARCHITECTURE §3.2).
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+# The gate depends on rmcp internals, so it is pinned exactly (ARCHITECTURE §9).
+rmcp = "=3.10.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
