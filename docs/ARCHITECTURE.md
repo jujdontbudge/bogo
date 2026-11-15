@@ -266,7 +266,7 @@ opt(x)   := 0x00 | 0x01 x       str := u32 len utf8       bytes := u32 len raw
 `nowMs` values are arbitrary numbers in the model. "Fresh" is stated against the `now` of the dispatch step, so its meaning in real time rests on A9.
 
 **Assumptions** (each one listed in the docs):
-- **A1 Unforgeable, user-verified approvals.** For every algorithm tag in use, `verify alg (pk a) m p = true` implies `OwnerApproved a m`. This is a hypothesis on traces, not a global `axiom`, so it can't make the logic inconsistent. It covers spec assumptions 1 and 3.
+- **A1 Unforgeable, user-verified approvals.** For every algorithm tag in use, `verify alg (pk a) m p = true` implies `OwnerApproved a m`. In Lean it is the one axiom beyond the standard three, `Bogo.Proofs.A1_unforgeable`, so `#print axioms` shows every theorem that rests on it. `OwnerApproved` is opaque and A1 is its only source, so the axiom can't make the logic inconsistent (it holds when `OwnerApproved` is read as `True`). It covers spec assumptions 1 and 3.
 - **A2 Hash collision resistance**, inside ECDSA-SHA-256 and for the log chain. The core matches by full byte equality, never by hash.
 - **A3 Distinct boots.** `bootId` is 32 random bytes, so no two boots share one.
 - **A4, A5.** Spec assumptions 4 and 5 (the sandbox, and upstreams rejecting unauthenticated requests). Listed, but unused in Lean.
@@ -289,6 +289,8 @@ opt(x)   := 0x00 | 0x01 x       str := u32 len utf8       bytes := u32 len raw
 10. **Encoding.** `encode_injective` and `decode_encode`.
 
 The proofs cover any number of approvers, any-of and k-of-n under both deny rules, revocation at any point, per-agent overrides, and both modes.
+
+**In Lean** (`BogoProofs`, each pinned by `#guard_msgs` on `#print axioms` in `BogoProofs/Axioms.lean`): (1) `approved`, (2) `exact`, (3) `single_use`, (4) `settled_final`, (5, 6) `fresh`, (7) `fail_closed` and `malformed_never_runs`, (8) `safe_default` and `unlisted_never_allow`, (9) `attach_never_runs`, (10) `encode_injective`, `decode_encode`, `encode_decode` and `decode_injective`. Also `asks_admitted` and `flood_limit` (the owner is asked only about an admitted call, under the flood limit), `blocked_after` and `blocked_agent_not_asked` (pause and revocation), and `revoked_approver_gone`. `bytes_lift`, `single_use_bytes` and `approved_bytes` carry the theorems to the raw byte strings Rust passes to `bogo_lean_step`. The gate checks the requirement and eligibility under both the policy a request was admitted with and the policy in force at `dispatch`, so (1) holds even if `configure` changes the policy while a request is live.
 
 **Not proved:** human judgment, notification delivery, schema compatibility, detecting a client that vanishes silently, and what a provider does after BOGO handed it bytes. The linearization point is the accepted `dispatch` at the transport write.
 

@@ -13,7 +13,7 @@ and round-trips through the writer and the value encoding; each request decodes 
 itself; each rejected text or byte string is refused. The generator exits non-zero otherwise.
 Output is deterministic, so regenerating without a change gives identical files.
 -/
-import BogoCore
+import BogoCore.Encoding
 import BogoVectors.JsonText
 
 namespace Bogo.Vectors

@@ -307,6 +307,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "bogo-core"
+version = "0.1.0"
+dependencies = [
+ "bogo-core-sys",
+ "bogo-json",
+ "bogo-verify",
+ "p256",
+]
+
+[[package]]
+name = "bogo-core-sys"
+version = "0.1.0"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "bogo-e2e"
 version = "0.1.0"
 dependencies = [
