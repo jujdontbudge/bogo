@@ -1,0 +1,23 @@
+[package]
+name = "bogo-state"
+description = "~/.bogo layout and permissions, the single-writer lock, BOGO's own keys, registry caches rebuilt from the log"
+version.workspace = true
+edition.workspace = true
+# File::try_lock
+rust-version = "1.89"
+publish.workspace = true
+
+[dependencies]
+bogo-log = { path = "../bogo-log" }
+bogo-e2e = { path = "../bogo-e2e" }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+hex = "0.4"
+thiserror = "2"
+zeroize = "1"
+
+[lints]
+workspace = true
