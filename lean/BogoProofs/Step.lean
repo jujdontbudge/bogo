@@ -13,22 +13,26 @@ open Bogo
 def frz (q : ReqRec) : Request × String × Requirement × DenyRule × Mode × List ApproverId :=
   (q.req, q.name, q.requirement, q.denyRule, q.mode, q.eligible)
 
-/-- Every record in `l'` comes from a record in `l` with the same admission context. -/
-def KeptL (l l' : List ReqRec) : Prop := ∀ q' ∈ l', ∃ q ∈ l, frz q = frz q'
+/-- The records in `l'` are a sublist of those in `l`, up to their mutable fields: no record
+appears, none is duplicated, and none changes its admission context. -/
+def KeptL (l l' : List ReqRec) : Prop := (l'.map frz).Sublist (l.map frz)
 
-@[simp] theorem keptL_refl (l : List ReqRec) : KeptL l l := fun q h => ⟨q, h, rfl⟩
+@[simp] theorem keptL_refl (l : List ReqRec) : KeptL l l := List.Sublist.refl _
 
 @[simp] theorem keptL_filter {l l' : List ReqRec} {p : ReqRec → Bool} (h : KeptL l l') :
-    KeptL l (l'.filter p) := by
-  intro q hq
-  exact h q (List.mem_filter.mp hq).1
+    KeptL l (l'.filter p) := ((List.filter_sublist).map frz).trans h
 
 @[simp] theorem keptL_map {l l' : List ReqRec} {f : ReqRec → ReqRec}
     (hf : ∀ x, frz (f x) = frz x) (h : KeptL l l') : KeptL l (l'.map f) := by
-  intro q hq
-  obtain ⟨x, hx, rfl⟩ := List.mem_map.mp hq
-  obtain ⟨y, hy, e⟩ := h x hx
-  exact ⟨y, hy, by rw [e, hf]⟩
+  unfold KeptL
+  rw [List.map_map]
+  have : (frz ∘ f) = frz := funext hf
+  rw [this]; exact h
+
+theorem keptL_mem {l l' : List ReqRec} (h : KeptL l l') {q' : ReqRec} (hq : q' ∈ l') :
+    ∃ q ∈ l, frz q = frz q' := by
+  have := h.subset (List.mem_map_of_mem hq)
+  simpa [eq_comm] using this
 
 theorem frz_ite {c : Bool} {g : ReqRec → ReqRec} (hg : ∀ x, frz (g x) = frz x) (x : ReqRec) :
     frz (if c then g x else x) = frz x := by
@@ -188,7 +192,7 @@ def Admitted (s : State) (sid : SessionId) (n : String) (a : Option JVal) (now :
 def CallsPlus (l l' : List CallRec) (c : CallId) : Prop := ∀ x ∈ l', x ∈ l ∨ x.id = c
 
 @[simp] theorem callsPlus_refl (l : List CallRec) (c : CallId) : CallsPlus l l c :=
-  fun x hx => .inl hx
+  fun _ hx => .inl hx
 
 @[simp] theorem callsPlus_cons {l : List CallRec} {x : CallRec} {c : CallId} (h : x.id = c) :
     CallsPlus l (x :: l) c := by
