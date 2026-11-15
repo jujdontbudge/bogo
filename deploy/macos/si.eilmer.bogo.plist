@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Reference only. `bogo init` and `bogo start` write concrete owner paths. -->
+<plist version="1.0"><dict>
+  <key>Label</key><string>si.eilmer.bogo</string>
+  <key>ProgramArguments</key><array>
+    <string>@BOGO_BIN@</string><string>--home</string><string>@BOGO_HOME@</string><string>serve</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>@BOGO_HOME@/run/stdout.log</string>
+  <key>StandardErrorPath</key><string>@BOGO_HOME@/run/stderr.log</string>
+</dict></plist>
