@@ -1,0 +1,19 @@
+[package]
+name = "bogo-core-sys"
+description = "Builds the Lean decision core, the C shim around lean.h, and the raw FFI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+links = "bogo_core"
+build = "build.rs"
+
+# The only crate with `unsafe` FFI or `lean.h` (ARCHITECTURE §7). The C shim calls
+# `bogo_rs_verify`, which `bogo-verify` defines; whatever links this crate links that too.
+[dependencies]
+
+[build-dependencies]
+cc = "1"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

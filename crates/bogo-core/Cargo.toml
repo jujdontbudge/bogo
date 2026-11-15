@@ -1,0 +1,19 @@
+[package]
+name = "bogo-core"
+description = "Safe handle on the Lean decision core: the core thread, typed Input/Output, the wire codec"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+bogo-core-sys = { path = "../bogo-core-sys" }
+bogo-json = { workspace = true }
+
+[dev-dependencies]
+# The verifier behind the core's extern hook, and keys to sign real approvals with.
+bogo-verify = { path = "../bogo-verify" }
+p256 = { version = "0.13", features = ["ecdsa"] }
+
+[lints]
+workspace = true
