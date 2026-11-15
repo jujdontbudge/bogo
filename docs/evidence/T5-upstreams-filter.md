@@ -111,7 +111,12 @@ Sol review ledger:
 - After the fix, `cargo clippy --workspace --all-targets -- -D warnings`, the full
   `cargo test --workspace` suite (now four tests), and the real verification client
   all passed. No findings declined. Usage was not exposed. Nothing pushed.
-- Round 2: pending; restricted to S1 and the changed behavior.
+- Round 2, GPT-6.1 Sol, medium effort: APPROVE at
+  `190328345181f898288527b681d4d80bf052ee19`. S1 resolved; no new blocker/should
+  findings. Sol reran the targeted regression: 1 passed, 0 failed. This round was
+  restricted to S1 and the changed behavior; full checks and real-server use had
+  already passed after the fix. Both rounds used the same model/effort; usage was
+  not exposed. No further product changes followed approval.
 
 Review diff (Cargo manifests/lock and the two crates): 3918 additions / 82 deletions
 before S1, 3964 additions / 82 deletions after S1. Most lines are Cargo.lock.
