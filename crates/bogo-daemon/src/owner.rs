@@ -116,7 +116,7 @@ hide_denied = true
 # max_pending = OWNER_SETS_INTEGER
 # Add upstreams with `bogo upstream add` or edit this file.
 # [relay]
-# url = "https://bogo.eilmer.si:PORT"
+# url = "https://bogo.eilmer.si:8443"
 # max_message_age = "OWNER_SETS_DURATION"
 # mailbox_capacity = OWNER_SETS_INTEGER
 # [apns]
