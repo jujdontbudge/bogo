@@ -1,0 +1,335 @@
+BOGO bypass suite: every attempt below must be stopped (PASS).
+Controls (OK) show what the sandbox is meant to allow.
+
+== Process ==
+[INFO] process identity
+         -> Uid 1000 1000 1000 1000; CapEff 0000000000000000; CapBnd 0000000000000000; NoNewPrivs 1
+[PASS] process run as root or hold any capability
+         -> non-root with no effective capabilities
+
+== Direct network: upstreams, relay, internet, IPv6, metadata ==
+[PASS] direct  TCP api.stripe.com 198.137.150.221:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP api.stripe.com 198.137.150.221:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP api.stripe.com 198.202.176.221:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP api.stripe.com 198.202.176.221:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP link.com 198.137.150.41:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP link.com 198.137.150.41:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP link.com 198.202.176.41:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP link.com 198.202.176.41:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP api.link.com 198.137.150.161:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP api.link.com 198.137.150.161:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP api.link.com 198.202.176.161:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP api.link.com 198.202.176.161:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP registry.npmjs.org 104.16.0.34:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP registry.npmjs.org 104.16.0.34:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP registry.npmjs.org 104.16.1.34:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP registry.npmjs.org 104.16.1.34:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP example.com 104.20.23.154:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP example.com 104.20.23.154:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP example.com 172.66.147.243:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP example.com 172.66.147.243:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP public DNS 1.1.1.1:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP public DNS 8.8.8.8:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP public IP 9.9.9.9:443
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP cloud metadata 169.254.169.254:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP ECS metadata 169.254.170.2:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP Alibaba metadata 100.100.100.200:80
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] direct  TCP IPv6 public [2606:4700:4700::1111]:443
+         -> EADDRNOTAVAIL: no source address for it (IPv6 is disabled)
+[PASS] direct  TCP IPv6 public [2001:4860:4860::8888]:443
+         -> EADDRNOTAVAIL: no source address for it (IPv6 is disabled)
+[PASS] direct  TCP IPv6 metadata [fd00:ec2::254]:80
+         -> EADDRNOTAVAIL: no source address for it (IPv6 is disabled)
+[PASS] direct  TCP IPv6 loopback [::1]:8790
+         -> EADDRNOTAVAIL: no source address for it (IPv6 is disabled)
+[PASS] direct  TCP other loopback 127.0.0.2:8790
+         -> timed out: no packet came back (dropped)
+[INFO] direct  TCP own loopback 127.0.0.1:8790
+         -> a local process in the sandbox answered (or refused): loopback is the namespace's own
+
+== DNS ==
+[INFO] dns     /etc/resolv.conf nameservers
+         -> nameserver 127.0.0.11
+[PASS] dns     resolve api.stripe.com
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve link.com
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve api.link.com
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve bogo.eilmer.si
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve registry.npmjs.org
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve example.com
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve host.docker.internal
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve gateway.docker.internal
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve gate
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve netpol
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve agent
+         -> lookup failed: failed to lookup address information: Try again
+[PASS] dns     resolve metadata.google.internal
+         -> lookup failed: failed to lookup address information: Try again
+[INFO] dns     resolve api.anthropic.com
+         -> 172.30.0.3 from the static /etc/hosts entry for the model forwarder (§11 Q1); not a DNS answer
+[PASS] dns     UDP query api.stripe.com to 127.0.0.11:53
+         -> EPERM: dropped by the sandbox's nftables output rule
+[PASS] dns     UDP query gate to 127.0.0.11:53
+         -> EPERM: dropped by the sandbox's nftables output rule
+[PASS] dns     TCP DNS 127.0.0.11:53
+         -> timed out: no packet came back (dropped)
+[PASS] dns     UDP query api.stripe.com to 172.30.0.1:53
+         -> EPERM: dropped by the sandbox's nftables output rule
+[PASS] dns     UDP query gate to 172.30.0.1:53
+         -> EPERM: dropped by the sandbox's nftables output rule
+[PASS] dns     TCP DNS 172.30.0.1:53
+         -> timed out: no packet came back (dropped)
+[PASS] dns     UDP query api.stripe.com to 1.1.1.1:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query gate to 1.1.1.1:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     TCP DNS 1.1.1.1:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query api.stripe.com to 8.8.8.8:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query gate to 8.8.8.8:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     TCP DNS 8.8.8.8:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query api.stripe.com to 192.168.5.3:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query gate to 192.168.5.3:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     TCP DNS 192.168.5.3:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query api.stripe.com to 192.168.65.7:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query gate to 192.168.65.7:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     TCP DNS 192.168.65.7:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query api.stripe.com to [2606:4700:4700::1111]:53
+         -> EADDRNOTAVAIL: no source address for it (IPv6 is disabled)
+[PASS] dns     UDP query gate to [2606:4700:4700::1111]:53
+         -> EADDRNOTAVAIL: no source address for it (IPv6 is disabled)
+[PASS] dns     TCP DNS [2606:4700:4700::1111]:53
+         -> EADDRNOTAVAIL: no source address for it (IPv6 is disabled)
+[PASS] dns     UDP query api.stripe.com to 172.17.0.1:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query gate to 172.17.0.1:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     TCP DNS 172.17.0.1:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query api.stripe.com to 192.168.5.2:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query gate to 192.168.5.2:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     TCP DNS 192.168.5.2:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query api.stripe.com to 192.168.5.15:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query gate to 192.168.5.15:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     TCP DNS 192.168.5.15:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query api.stripe.com to 192.168.65.254:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query gate to 192.168.65.254:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     TCP DNS 192.168.65.254:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query api.stripe.com to 192.168.65.1:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query gate to 192.168.65.1:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     TCP DNS 192.168.65.1:53
+         -> ENETUNREACH: no route out of the sandbox
+[PASS] dns     UDP query api.stripe.com to 172.30.0.2:53
+         -> EPERM: dropped by the sandbox's nftables output rule
+[PASS] dns     UDP query gate to 172.30.0.2:53
+         -> EPERM: dropped by the sandbox's nftables output rule
+[PASS] dns     TCP DNS 172.30.0.2:53
+         -> timed out: no packet came back (dropped)
+[PASS] dns     TCP 127.0.0.11 on all 65535 ports
+         -> 65535× timed out: no packet came back (dropped)
+[PASS] dns     UDP to 127.0.0.11 on every port 1-65535
+         -> 65535× EPERM: dropped by the sandbox's nftables output rule
+
+== Host, gateways and the forwarders' other ports ==
+[PASS] ports   TCP 172.30.0.2 on all 65534 ports except 8790
+         -> 65534× timed out: no packet came back (dropped)
+[PASS] ports   TCP 172.30.0.3 on all 65534 ports except 443
+         -> 65534× timed out: no packet came back (dropped)
+[PASS] ports   TCP 172.30.0.1 on all 65535 ports
+         -> 65535× timed out: no packet came back (dropped)
+[PASS] ports   TCP 172.17.0.1 on all 65535 ports
+         -> 65535× ENETUNREACH: no route out of the sandbox
+[PASS] ports   TCP 192.168.5.2 on all 65535 ports
+         -> 65535× ENETUNREACH: no route out of the sandbox
+[PASS] ports   TCP 192.168.5.15 on all 65535 ports
+         -> 65535× ENETUNREACH: no route out of the sandbox
+[PASS] ports   TCP 192.168.65.254 on all 65535 ports
+         -> 65535× ENETUNREACH: no route out of the sandbox
+[PASS] ports   TCP 192.168.65.1 on all 65535 ports
+         -> 65535× ENETUNREACH: no route out of the sandbox
+[PASS] ports   TCP other bogo-net addresses 172.30.0.1-254 (1500 address:port pairs)
+         -> 1500× timed out: no packet came back (dropped)
+[ OK ] ports   TCP BOGO's gate 172.30.0.2:8790
+         -> connected (the one allowed path)
+
+== Forwarders used as proxies ==
+[PASS] proxy   HTTP CONNECT api.stripe.com:443 through the gate
+         -> BOGO answered "HTTP/1.1 401 Unauthorized": not a proxy
+[PASS] proxy   absolute-URI proxy GET http://api.stripe.com/ through the gate
+         -> BOGO answered "HTTP/1.1 401 Unauthorized": not a proxy
+[PASS] proxy   HTTP CONNECT api.stripe.com through the model forwarder
+         -> answered "HTTP/1.1 400 Bad Request": the forwarder only reaches the model host's TLS port
+[PASS] proxy   HTTPS api.stripe.com through the model forwarder (SNI api.stripe.com)
+         -> TLS refused: error sending request for url (https://api.stripe.com/): client error (Connect): received fatal alert: HandshakeFailure
+[PASS] proxy   HTTPS api.link.com through the model forwarder (SNI api.link.com)
+         -> TLS refused: error sending request for url (https://api.link.com/): client error (Connect): received fatal alert: HandshakeFailure
+[PASS] proxy   HTTPS link.com through the model forwarder (SNI link.com)
+         -> TLS refused: error sending request for url (https://link.com/): client error (Connect): received fatal alert: HandshakeFailure
+[PASS] proxy   HTTPS bogo.eilmer.si through the model forwarder (SNI bogo.eilmer.si)
+         -> HTTP 403 server=cloudflare body "error code: 1034": refused by the model host's edge, not by the sandbox: the forwarder only ever reaches the model host (§11 Q1)
+[PASS] proxy   HTTPS registry.npmjs.org through the model forwarder (SNI registry.npmjs.org)
+         -> HTTP 403 server=cloudflare body "error code: 1034": refused by the model host's edge, not by the sandbox: the forwarder only ever reaches the model host (§11 Q1)
+[PASS] proxy   domain fronting: SNI api.anthropic.com with Host api.stripe.com through the model forwarder
+         -> HTTP 403 server=cloudflare body "<html> <head><title>403 Forbidden</title></head> <body> <cen": refused by the model host's edge, not by the sandbox: the forwarder only ever reaches the model host (§11 Q1)
+[PASS] proxy   domain fronting: SNI api.anthropic.com with Host bogo.eilmer.si through the model forwarder
+         -> HTTP 403 server=cloudflare body "<html> <head><title>403 Forbidden</title></head> <body> <cen": refused by the model host's edge, not by the sandbox: the forwarder only ever reaches the model host (§11 Q1)
+[PASS] proxy   domain fronting: SNI api.anthropic.com with Host registry.npmjs.org through the model forwarder
+         -> HTTP 403 server=cloudflare body "<html> <head><title>403 Forbidden</title></head> <body> <cen": refused by the model host's edge, not by the sandbox: the forwarder only ever reaches the model host (§11 Q1)
+[ OK ] proxy   HTTPS api.anthropic.com through the model forwarder
+         -> HTTP 404 server=cloudflare body "" (allowed by §11 Q1; the trust store works, so TLS failures above are real)
+
+== Changing the rules ==
+[PASS] rules   netlink NFT_MSG_DELTABLE (flush every table)
+         -> EPERM: the kernel requires CAP_NET_ADMIN
+[PASS] rules   nft flush ruleset
+         -> exit 1: Error: Could not process rule: Operation not permitted
+[PASS] rules   iptables -F
+         -> not runnable: ENOENT: does not exist in the sandbox
+[PASS] rules   ip6tables -F
+         -> not runnable: ENOENT: does not exist in the sandbox
+[PASS] rules   after those attempts: TCP 172.30.0.2:22 (on-link, closed)
+         -> timed out: no packet came back (dropped); the gate still connects, so the same rules hold
+
+== Docker socket and host files ==
+[PASS] docker  connect /var/run/docker.sock
+         -> ENOENT: does not exist in the sandbox
+[PASS] docker  connect /run/docker.sock
+         -> ENOENT: does not exist in the sandbox
+[PASS] docker  connect /run/podman/podman.sock
+         -> ENOENT: does not exist in the sandbox
+[PASS] docker  connect /run/containerd/containerd.sock
+         -> ENOENT: does not exist in the sandbox
+[PASS] docker  connect /var/run/colima/docker.sock
+         -> ENOENT: does not exist in the sandbox
+[PASS] mounts  find host home directories, ~/.bogo or BOGO's owner socket
+         -> none of /Users, /Volumes, /host, ~/.bogo or bogo.sock exists here
+
+== Credential scan (filesystem and environment) ==
+[INFO] secrets scope
+         -> 5936 files (968 MiB) under /, 2 /proc environ and cmdline files, 14 environment variables; 17 paths unreadable to this user
+[PASS] secrets find Stripe keys, .p8 keys, secrets.toml, BOGO's keys or log, Link's auth file, other agents' tokens
+         -> nothing found
+
+== MCP: authentication, approvals, sessions ==
+[ OK ] mcp     initialize at http://172.30.0.2:8790/mcp with this agent's token
+         -> BOGO answered through the gate
+[INFO] mcp     tools/list
+         -> 19 tools: files__append_file, files__copy_file, files__create_directory, files__directory_tree, files__edit_file, files__get_file_info, files__list_allowed_directories, files__list_directory, files__list_directory_with_sizes, files__read_file, files__read_media_file, files__read_multiple_files, files__read_text_file, files__search_files, files__write_file, stripe__call_read_tool, stripe__call_write_tool, stripe__get_tool_details, stripe__search_tools
+[PASS] mcp     see the deny-policy tool files__move_file in tools/list
+         -> hidden (hide_denied)
+[PASS] auth    MCP initialize with no token
+         -> HTTP 401
+[PASS] auth    MCP initialize with a wrong token
+         -> HTTP 401
+[PASS] auth    MCP initialize with a browser Origin header
+         -> HTTP 403
+[PASS] auth    MCP initialize with a foreign Host header
+         -> HTTP 403
+[PASS] parse   JSON-RPC batch
+         -> HTTP 400
+[PASS] parse   duplicate keys (smuggling a second name)
+         -> HTTP 400
+[PASS] mcp     resources/list (not proxied)
+         -> answered by BOGO itself with an empty result: {"jsonrpc":"2.0","id":20,"result":{"resources":[]}} id: 0/1  
+[PASS] mcp     resources/read (not proxied)
+         -> JSON-RPC error -32601: resources/read
+[PASS] mcp     prompts/list (not proxied)
+         -> answered by BOGO itself with an empty result: {"jsonrpc":"2.0","id":22,"result":{"prompts":[]}} id: 0/3  
+[PASS] mcp     completion/complete (not proxied)
+         -> answered by BOGO itself with an empty result: {"jsonrpc":"2.0","id":23,"result":{"completion":{"values":[]}}} id: 0/4  
+[INFO] mcp     filesystem upstream root
+         -> /Users/johansardar/bogo-test
+[PASS] mcp     call un-namespaced or altered name "write_file"
+         -> Unknown tool.
+[PASS] mcp     call un-namespaced or altered name "Files__write_file"
+         -> Unknown tool.
+[PASS] mcp     call un-namespaced or altered name "files__write_file "
+         -> Unknown tool.
+[PASS] mcp     call deny-policy tool files__move_file
+         -> This tool is denied by policy.
+[PASS] effect  read /Users/johansardar/bogo-test/bypass-90097205.txt back through BOGO
+         -> not written: ENOENT: no such file or directory, lstat '/Users/johansardar/bogo-test/bypass-90097205.txt'
+[PASS] approval protected call with no approval (files__write_file)
+         -> held for owner approval; after 4s the connection was dropped, which ends the call
+[PASS] effect  read /Users/johansardar/bogo-test/bypass-held-58b8bf13.txt back through BOGO
+         -> not written: ENOENT: no such file or directory, lstat '/Users/johansardar/bogo-test/bypass-held-58b8bf13.txt'
+[PASS] approval fake approval smuggled in _meta (incl. BOGO's internal call marker) (files__write_file)
+         -> held for owner approval; after 4s the connection was dropped, which ends the call
+[PASS] effect  read /Users/johansardar/bogo-test/bypass-held-4cf0f190.txt back through BOGO
+         -> not written: ENOENT: no such file or directory, lstat '/Users/johansardar/bogo-test/bypass-held-4cf0f190.txt'
+[PASS] approval fake approval smuggled in the arguments (files__write_file)
+         -> held for owner approval; after 4s the connection was dropped, which ends the call
+[PASS] effect  read /Users/johansardar/bogo-test/bypass-held-f47cee67.txt back through BOGO
+         -> not written: ENOENT: no such file or directory, lstat '/Users/johansardar/bogo-test/bypass-held-f47cee67.txt'
+[PASS] approval replay a real approval signature taken from the audit log (files__write_file)
+         -> held for owner approval; after 4s the connection was dropped, which ends the call
+[PASS] effect  read /Users/johansardar/bogo-test/bypass-held-608a44d4.txt back through BOGO
+         -> not written: ENOENT: no such file or directory, lstat '/Users/johansardar/bogo-test/bypass-held-608a44d4.txt'
+[PASS] approval repeat a protected call in a fresh session
+         -> held again: a new session is a new request
+[PASS] effect  read /Users/johansardar/bogo-test/bypass-held-643b06b7.txt back through BOGO
+         -> not written: ENOENT: no such file or directory, lstat '/Users/johansardar/bogo-test/bypass-held-643b06b7.txt'
+[PASS] session reuse this agent's Mcp-Session-Id with another agent's token
+         -> HTTP 403 
+[INFO] session the original agent's session afterwards
+         -> closed: HTTP 404 
+[PASS] session reuse this agent's Bogo-Session with another agent's token
+         -> HTTP 403 
+
+== Summary ==
+145 attempts stopped, 0 failed, 3 controls held.
