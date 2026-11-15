@@ -1021,12 +1021,24 @@ pub async fn serve(root: &Path) -> Result<()> {
                         else {
                             return Err("non-call invocation".into());
                         };
+                        let agent = shell
+                            .sessions
+                            .get(session)
+                            .and_then(|id| shell.registry.agents.get(&hex::encode(id)));
+                        let agent_id = agent.map(|a| a.id.clone());
+                        let agent_name = agent.map(|a| a.name.clone());
+                        let policy = agent.map(|a| {
+                            format!("{:?}", policy::effective(&shell.config, &a.name, name))
+                        });
                         shell
                             .append(vec![LogEvent::Call {
                                 call: Hex(call.clone()),
                                 session: Hex(session.clone()),
                                 tool: name.clone(),
                                 arguments: args.as_ref().map(bogo_json::JVal::write),
+                                agent: agent_id,
+                                agent_name,
+                                policy,
                             }])
                             .await?;
                         shell.calls.insert(
@@ -1041,30 +1053,77 @@ pub async fn serve(root: &Path) -> Result<()> {
                         shell.step(i).await?;
                     }
                     Job::Dispatch(call, tx) => {
-                        let outputs = shell
-                            .step(Input::Dispatch {
-                                call,
-                                now_ms: shell.handle.clock.now(),
-                            })
+                        // A crash from here is conservatively unknown. Sync BEFORE the
+                        // final check, then requeue behind events observed during that sync.
+                        shell
+                            .append(vec![LogEvent::CallOutcome {
+                                call: Hex(call.clone()),
+                                outcome: "dispatch_intent".into(),
+                                registry_seq: None,
+                            }])
                             .await?;
-                        let forward = outputs.into_iter().find_map(|o| {
-                            if let Output::Forward {
+                        shell
+                            .handle
+                            .tx
+                            .send(Job::DispatchReady(call, tx))
+                            .map_err(|_| "daemon stopped")?;
+                    }
+                    Job::DispatchReady(call, tx) => {
+                        let input = Input::Dispatch {
+                            call,
+                            now_ms: shell.handle.clock.now(),
+                        };
+                        let step = shell.core.step(&input).map_err(error)?;
+                        shell.deadline = step.deadline_ms;
+                        if let [
+                            Output::Forward {
+                                call,
+                                req,
                                 upstream,
                                 tool,
                                 args,
-                                ..
-                            } = o
-                            {
-                                Some(bogo_upstream::Forward {
-                                    upstream,
-                                    tool,
-                                    arguments: args,
+                                registry_seq,
+                            },
+                        ] = step.outputs.as_slice()
+                        {
+                            // No await, log I/O, or other core step after Forward. The
+                            // transport receives only the core's exact destination/args.
+                            shell
+                                .handle
+                                .tx
+                                .send(Job::Forwarded {
+                                    call: call.clone(),
+                                    req: req.clone(),
+                                    registry_seq: *registry_seq,
                                 })
-                            } else {
-                                None
-                            }
-                        });
-                        let _ = tx.send(forward.ok_or(bogo_upstream::Error::Rejected));
+                                .map_err(|_| "daemon stopped")?;
+                            let _ = tx.send(Ok(bogo_upstream::Forward {
+                                upstream: upstream.clone(),
+                                tool: tool.clone(),
+                                arguments: args.clone(),
+                            }));
+                        } else {
+                            shell.apply(input, step.outputs).await?;
+                            let _ = tx.send(Err(bogo_upstream::Error::Rejected));
+                        }
+                    }
+                    Job::Forwarded {
+                        call,
+                        req,
+                        registry_seq,
+                    } => {
+                        let mut events = vec![LogEvent::CallOutcome {
+                            call: Hex(call),
+                            outcome: "forwarded".into(),
+                            registry_seq: Some(registry_seq),
+                        }];
+                        if let Some(req) = req {
+                            events.push(LogEvent::Forwarded {
+                                req: Hex(req),
+                                registry_seq,
+                            });
+                        }
+                        shell.append(events).await?;
                     }
                     Job::Finished(c, r) => shell.finished(c, r).await?,
                     Job::Decision(d, tx) => {

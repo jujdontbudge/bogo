@@ -38,6 +38,15 @@ enum Job {
         Bytes,
         oneshot::Sender<std::result::Result<bogo_upstream::Forward, bogo_upstream::Error>>,
     ),
+    DispatchReady(
+        Bytes,
+        oneshot::Sender<std::result::Result<bogo_upstream::Forward, bogo_upstream::Error>>,
+    ),
+    Forwarded {
+        call: Bytes,
+        req: Option<Bytes>,
+        registry_seq: u64,
+    },
     Finished(
         Bytes,
         std::result::Result<rmcp::model::CallToolResult, bogo_upstream::Error>,
@@ -337,7 +346,9 @@ impl Shell {
             e.to_string()
         })?;
         self.deadline = step.deadline_ms;
-        let outputs = step.outputs;
+        self.apply(input, step.outputs).await
+    }
+    async fn apply(&mut self, input: Input, outputs: Vec<Output>) -> Result<Vec<Output>> {
         let mut events = vec![];
         if let Input::Approval {
             approver,

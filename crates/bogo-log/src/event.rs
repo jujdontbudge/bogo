@@ -55,7 +55,7 @@ pub enum RevokedBy {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum LogEvent {
-    Call { call: Hex, session: Hex, tool: String, arguments: Option<String> },
+    Call { call: Hex, session: Hex, tool: String, arguments: Option<String>, agent: Option<Hex>, agent_name: Option<String>, policy: Option<String> },
     CallOutcome { call: Hex, outcome: String, registry_seq: Option<u64> },
     Configured { sha256: String },
     CallResult { call: Hex, outcome: String, is_error: bool, filtered_fields: usize, withheld: usize },
