@@ -1,0 +1,26 @@
+[package]
+name = "bogo-front"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+bogo-json.workspace = true
+bogo-core = { path = "../bogo-core" }
+rmcp = { workspace = true, features = ["server", "transport-streamable-http-server"] }
+serde_json.workspace = true
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+futures = "0.3"
+tower = { version = "0.5", features = ["util"] }
+sha2 = "0.10"
+rand = "0.8"
+
+[dev-dependencies]
+bogo-verify = { path = "../bogo-verify" }
+p256 = { version = "0.13", features = ["ecdsa"] }
+
+[lints]
+workspace = true
