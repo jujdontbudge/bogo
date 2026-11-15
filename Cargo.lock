@@ -115,6 +115,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-trait"
+version = "0.1.92"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82f6aeea286b8eb4dd3431a1be1b59d290ace00f5bfd8e2a159bc2a05e2c1667"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -286,6 +297,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "bogo-approver"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "hex",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "bogo-approver-iphone"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "bogo-apns",
+ "bogo-approver",
+ "bogo-attest",
+ "bogo-e2e",
+ "bogo-relay-proto",
+ "bogo-verify",
+ "chacha20poly1305",
+ "ed25519-dalek",
+ "hex",
+ "hkdf",
+ "rand 0.8.8",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "x25519-dalek",
+]
+
+[[package]]
 name = "bogo-attest"
 version = "0.1.0"
 dependencies = [
@@ -348,6 +398,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bogo-log"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "bogo-relay"
 version = "0.1.0"
 dependencies = [
@@ -379,6 +441,51 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "bogo-standin"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "bogo-approver",
+ "bogo-approver-iphone",
+ "bogo-attest",
+ "bogo-e2e",
+ "bogo-log",
+ "bogo-relay-proto",
+ "bogo-state",
+ "bogo-verify",
+ "clap",
+ "ed25519-dalek",
+ "hex",
+ "p256",
+ "rand 0.8.8",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "x25519-dalek",
+]
+
+[[package]]
+name = "bogo-state"
+version = "0.1.0"
+dependencies = [
+ "bogo-e2e",
+ "bogo-log",
+ "ed25519-dalek",
+ "hex",
+ "rand 0.8.8",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror",
+ "zeroize",
 ]
 
 [[package]]
@@ -3380,6 +3487,8 @@ checksum = "c7e468321c81fb07fa7f4c636c3972b9100f0346e5b6a9f2bd0603a52f7ed277"
 dependencies = [
  "curve25519-dalek",
  "rand_core 0.6.4",
+ "serde",
+ "zeroize",
 ]
 
 [[package]]
