@@ -1,0 +1,465 @@
+Configuration probe output (212 parser cases; 8 daemon startup refusals).
+Temporary probe-directory paths normalized to <probe>; no real credentials used.
+
+PASS complete accepted configuration: accepted
+PASS version refused 0: bogo.toml: version 2 is not supported; this BOGO reads `version = 1`
+PASS version refused 1: bogo.toml: version "1" is not supported; this BOGO reads `version = 1`
+PASS version refused 2: bogo.toml: `version` is missing; this BOGO reads `version = 1`
+PASS port refused 0: bogo.toml: [server] port = 0 is not a port (1–65535)
+PASS port refused 1: bogo.toml: [server] port = -1 is not a port (1–65535)
+PASS port refused 2: bogo.toml: [server] port = 65536 is not a port (1–65535)
+PASS port refused 3: bogo.toml: TOML parse error at line 3, column 8
+  |
+3 | port = "8790"
+  |        ^^^^^^
+invalid type: string "8790", expected i64
+PASS port refused 4: bogo.toml: TOML parse error at line 2, column 1
+  |
+2 | [server]
+  | ^^^^^^^^
+missing field `port`
+PASS max_body refused 0: bogo.toml: [server] max_body = "0" is not a size like "1MiB" (from 1 byte up to 4GiB − 1)
+PASS max_body refused 1: bogo.toml: [server] max_body = "4GiB" is not a size like "1MiB" (from 1 byte up to 4GiB − 1)
+PASS max_body refused 2: bogo.toml: [server] max_body = "1MB" is not a size like "1MiB" (from 1 byte up to 4GiB − 1)
+PASS max_body refused 3: bogo.toml: [server] max_body = "1.5MiB" is not a size like "1MiB" (from 1 byte up to 4GiB − 1)
+PASS max_body refused 4: bogo.toml: [server] max_body = "1 MiB" is not a size like "1MiB" (from 1 byte up to 4GiB − 1)
+PASS max_body refused 5: bogo.toml: [server] max_body = "-1" is not a size like "1MiB" (from 1 byte up to 4GiB − 1)
+PASS max_body refused 6: bogo.toml: [server] max_body = "18446744073709551616" is not a size like "1MiB" (from 1 byte up to 4GiB − 1)
+PASS max_body refused 7: bogo.toml: TOML parse error at line 4, column 12
+  |
+4 | max_body = 10
+  |            ^^
+invalid type: integer `10`, expected a string
+PASS allowed_hosts refused 0: bogo.toml: [server] allowed_hosts entry "host.invalid" is not an IPv4 address like "172.30.0.2"; host names are refused
+PASS allowed_hosts refused 1: bogo.toml: [server] allowed_hosts entry "::1" is not an IPv4 address like "172.30.0.2"; host names are refused
+PASS allowed_hosts refused 2: bogo.toml: [server] allowed_hosts entry "0.0.0.0" is not an IPv4 address like "172.30.0.2"; host names are refused
+PASS allowed_hosts refused 3: bogo.toml: [server] allowed_hosts entry "255.255.255.255" is not an IPv4 address like "172.30.0.2"; host names are refused
+PASS allowed_hosts refused 4: bogo.toml: [server] allowed_hosts entry "999.1.1.1" is not an IPv4 address like "172.30.0.2"; host names are refused
+PASS allowed_hosts refused 5: bogo.toml: TOML parse error at line 5, column 18
+  |
+5 | allowed_hosts = [1]
+  |                  ^
+invalid type: integer `1`, expected a string
+PASS defaults.policy refused 0: bogo.toml: [defaults] policy = "allow" is refused: a tool you never listed must never run without your approval. Use "approve" or "deny", and set policy = "allow" on the [tools."…"] entries you want open.
+PASS defaults.policy refused 1: bogo.toml: [defaults] policy = "open" is not a policy; use "approve" or "deny"
+PASS defaults.policy refused 2: bogo.toml: TOML parse error at line 7, column 10
+  |
+7 | policy = true
+  |          ^^^^
+invalid type: boolean `true`, expected a string
+PASS hide_denied refused 0: bogo.toml: TOML parse error at line 8, column 15
+  |
+8 | hide_denied = "true"
+  |               ^^^^^^
+invalid type: string "true", expected a boolean
+PASS max_pending refused 0: bogo.toml: [defaults] max_pending is not set: choose how many requests one agent may have waiting at once (the flood limit). BOGO will not start until it is set.
+PASS max_pending refused 1: bogo.toml: [defaults] max_pending = 0 must be a whole number of at least 1
+PASS max_pending refused 2: bogo.toml: [defaults] max_pending = -1 must be a whole number of at least 1
+PASS max_pending refused 3: bogo.toml: [defaults] max_pending = 4294967296 must be a whole number of at least 1
+PASS max_pending refused 4: bogo.toml: TOML parse error at line 9, column 15
+  |
+9 | max_pending = 1.5
+  |               ^^^
+invalid type: floating point `1.5`, expected i64
+PASS relay.url refused 0: bogo.toml: [relay] url = "http://relay.example.invalid" must be an https:// URL
+PASS relay.url refused 1: bogo.toml: [relay] url = "https://" must be an https:// URL
+PASS relay.url refused 2: bogo.toml: TOML parse error at line 11, column 7
+   |
+11 | url = 3
+   |       ^
+invalid type: integer `3`, expected a string
+PASS relay.url refused 3: bogo.toml: TOML parse error at line 10, column 1
+   |
+10 | [relay]
+   | ^^^^^^^
+missing field `url`
+PASS mailbox_capacity refused 0: bogo.toml: [relay] mailbox_capacity is not set or is not positive; BOGO will not start until it is set
+PASS mailbox_capacity refused 1: bogo.toml: [relay] mailbox_capacity is not set or is not positive; BOGO will not start until it is set
+PASS mailbox_capacity refused 2: bogo.toml: [relay] mailbox_capacity is not set or is not positive; BOGO will not start until it is set
+PASS mailbox_capacity refused 3: bogo.toml: TOML parse error at line 13, column 20
+   |
+13 | mailbox_capacity = 1.5
+   |                    ^^^
+invalid type: floating point `1.5`, expected i64
+PASS apns.key refused 0: bogo.toml: [apns] key refers to secret `absent`, which is not in secrets.toml
+PASS apns.key refused 1: bogo.toml: TOML parse error at line 15, column 18
+   |
+15 | key = { secret = 1 }
+   |                  ^
+invalid type: integer `1`, expected a string
+PASS apns.key refused 2: bogo.toml: TOML parse error at line 15, column 24
+   |
+15 | key = { secret = "p8", extra = true }
+   |                        ^^^^^
+unknown field `extra`, expected `secret`
+PASS apns.key refused 3: bogo.toml: TOML parse error at line 15, column 7
+   |
+15 | key = "p8"
+   |       ^^^^
+invalid type: string "p8", expected struct SecretRef
+PASS apns.key refused 4: bogo.toml: TOML parse error at line 14, column 1
+   |
+14 | [apns]
+   | ^^^^^^
+missing field `key`
+PASS app_attest refused 0: bogo.toml: TOML parse error at line 19, column 1
+   |
+19 | [approvers.iphone]
+   | ^^^^^^^^^^^^^^^^^^
+missing field `app_attest`
+PASS app_attest refused 1: bogo.toml: [approvers.iphone] app_attest is empty; list "production" (and "development" only for development builds)
+PASS app_attest refused 2: bogo.toml: [approvers.iphone] app_attest has "other"; use "production" or "development"
+PASS app_attest refused 3: bogo.toml: [approvers.iphone] app_attest lists "production" twice
+PASS app_attest refused 4: bogo.toml: TOML parse error at line 21, column 15
+   |
+21 | app_attest = [1]
+   |               ^
+invalid type: integer `1`, expected a string
+PASS command refused 0: bogo.toml: [upstreams.files]: command is empty
+PASS command refused 1: bogo.toml: TOML parse error at line 24, column 11
+   |
+24 | command = 1
+   |           ^
+invalid type: integer `1`, expected a string
+PASS command refused 2: bogo.toml: [upstreams.files]: set `command` (local) or `url` (remote)
+PASS command refused 3: bogo.toml: [upstreams.files]: set either `command` or `url`, not both
+PASS command refused 4: bogo.toml: [upstreams.files]: `headers` is for remote upstreams (with `url`)
+PASS args refused 0: bogo.toml: TOML parse error at line 25, column 9
+   |
+25 | args = [1]
+   |         ^
+invalid type: integer `1`, expected a string
+PASS env refused 0: bogo.toml: [upstreams.files] env.X must be a string or { secret = "name" } (found: integer)
+PASS env refused 1: bogo.toml: [upstreams.files] env.X: expected { secret = "name" }
+PASS env refused 2: bogo.toml: [upstreams.files] env.X refers to secret `absent`, which is not in secrets.toml
+PASS env refused 3: bogo.toml: [upstreams.files] env.X: expected { secret = "name" }
+PASS env refused 4: bogo.toml: [upstreams.files] env.X: unknown field `bad` (expected { secret = "name" })
+PASS remote.url refused 0: bogo.toml: [upstreams.remote]: url = "ftp://mcp.example.invalid" must be an http(s):// URL
+PASS remote.url refused 1: bogo.toml: [upstreams.remote]: `args` and `env` are for local upstreams (with `command`)
+PASS remote.url refused 2: bogo.toml: [upstreams.remote]: `args` and `env` are for local upstreams (with `command`)
+PASS headers refused 0: bogo.toml: [upstreams.remote] headers.X must be a string or { secret = "name" } (found: integer)
+PASS headers refused 1: bogo.toml: [upstreams.remote] headers.X: expected { secret = "name" }
+PASS headers refused 2: bogo.toml: [upstreams.remote] headers.X refers to secret `absent`, which is not in secrets.toml
+PASS headers refused 3: bogo.toml: [upstreams.remote] headers.X: unknown field `extra` (expected { secret = "name" })
+PASS justification refused 0: bogo.toml: [tools."files__write_file"] justification = "always"; use "required" or "optional"
+PASS justification refused 1: bogo.toml: TOML parse error at line 32, column 17
+   |
+32 | justification = true
+   |                 ^^^^
+invalid type: boolean `true`, expected a string
+PASS highlight refused 0: bogo.toml: [tools."files__write_file"] highlight key "" is not a field path like "amount", "payment.amount" or "items[0].price"
+PASS highlight refused 1: bogo.toml: [tools."files__write_file"] highlight key "a..b" is not a field path like "amount", "payment.amount" or "items[0].price"
+PASS highlight refused 2: bogo.toml: [tools."files__write_file"] highlight key "items[-1]" is not a field path like "amount", "payment.amount" or "items[0].price"
+PASS highlight refused 3: bogo.toml: [tools."files__write_file"] highlight key "items[x]" is not a field path like "amount", "payment.amount" or "items[0].price"
+PASS highlight refused 4: bogo.toml: [tools."files__write_file"] highlight key "items[4294967296]" is not a field path like "amount", "payment.amount" or "items[0].price"
+PASS highlight refused 5: bogo.toml: [tools."files__write_file"] highlight key "items[0" is not a field path like "amount", "payment.amount" or "items[0].price"
+PASS highlight refused 6: bogo.toml: [tools."files__write_file"] highlight key "a]" is not a field path like "amount", "payment.amount" or "items[0].price"
+PASS highlight refused 7: bogo.toml: [tools."files__write_file"] highlight "a" = "USD_minor"; use "text", "usd_cents" or "<iso4217>_minor" (e.g. "eur_minor")
+PASS highlight refused 8: bogo.toml: [tools."files__write_file"] highlight "a" = "euro_minor"; use "text", "usd_cents" or "<iso4217>_minor" (e.g. "eur_minor")
+PASS highlight refused 9: bogo.toml: [tools."files__write_file"] highlight "a" = "currency"; use "text", "usd_cents" or "<iso4217>_minor" (e.g. "eur_minor")
+PASS highlight refused 10: bogo.toml: TOML parse error at line 33, column 21
+   |
+33 | highlight = { "a" = 1 }
+   |                     ^
+invalid type: integer `1`, expected a string
+PASS approvers refused 0: bogo.toml: [tools."files__write_file"] approvers has an empty name
+PASS approvers refused 1: bogo.toml: [tools."files__write_file"] approvers lists "Demo" twice
+PASS approvers refused 2: bogo.toml: TOML parse error at line 34, column 14
+   |
+34 | approvers = [1]
+   |              ^
+invalid type: integer `1`, expected a string
+PASS require refused 0: bogo.toml: [tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS require refused 1: bogo.toml: [tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS require refused 2: bogo.toml: [tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS require refused 3: bogo.toml: [tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS require refused 4: bogo.toml: [tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS require refused 5: bogo.toml: [tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS require refused 6: bogo.toml: [tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS require refused 7: bogo.toml: [tools."files__write_file"] requires 2 approvals but lists only 1 approver(s)
+PASS on_deny refused 0: bogo.toml: [tools."files__write_file"] on_deny = "all"; use "any" or "when_unreachable"
+PASS on_deny refused 1: bogo.toml: TOML parse error at line 36, column 11
+   |
+36 | on_deny = true
+   |           ^^^^
+invalid type: boolean `true`, expected a string
+PASS mode refused 0: bogo.toml: [tools."files__write_file"] mode = "retry"; use "wait" or "pending_retry"
+PASS mode refused 1: bogo.toml: TOML parse error at line 38, column 8
+   |
+38 | mode = true
+   |        ^^^^
+invalid type: boolean `true`, expected a string
+PASS filter_output refused 0: bogo.toml: [tools."files__write_file"] filter_output has an empty field path ""
+PASS filter_output refused 1: bogo.toml: [tools."files__write_file"] filter_output has an empty field path "a..b"
+PASS filter_output refused 2: bogo.toml: [tools."files__write_file"] filter_output has an empty field path ".a"
+PASS filter_output refused 3: bogo.toml: [tools."files__write_file"] filter_output has an empty field path "a."
+PASS filter_output refused 4: bogo.toml: TOML parse error at line 39, column 18
+   |
+39 | filter_output = [1]
+   |                  ^
+invalid type: integer `1`, expected a string
+PASS filter_action refused 0: bogo.toml: [tools."files__write_file"] filter_action = "remove"; use "strip" or "redact"
+PASS filter_action refused 1: bogo.toml: TOML parse error at line 40, column 17
+   |
+40 | filter_action = true
+   |                 ^^^^
+invalid type: boolean `true`, expected a string
+PASS key_id '': bogo.toml: TOML parse error at line 14, column 1
+   |
+14 | [apns]
+   | ^^^^^^
+missing field `key_id`
+PASS key_id 'key_id = " "': bogo.toml: [apns] key_id is empty
+PASS key_id 'key_id = 1': bogo.toml: TOML parse error at line 16, column 10
+   |
+16 | key_id = 1
+   |          ^
+invalid type: integer `1`, expected a string
+PASS team_id '': bogo.toml: TOML parse error at line 14, column 1
+   |
+14 | [apns]
+   | ^^^^^^
+missing field `team_id`
+PASS team_id 'team_id = " "': bogo.toml: [apns] team_id is empty
+PASS team_id 'team_id = 1': bogo.toml: TOML parse error at line 17, column 11
+   |
+17 | team_id = 1
+   |           ^
+invalid type: integer `1`, expected a string
+PASS topic '': bogo.toml: TOML parse error at line 14, column 1
+   |
+14 | [apns]
+   | ^^^^^^
+missing field `topic`
+PASS topic 'topic = " "': bogo.toml: [apns] topic is empty
+PASS topic 'topic = 1': bogo.toml: TOML parse error at line 18, column 9
+   |
+18 | topic = 1
+   |         ^
+invalid type: integer `1`, expected a string
+PASS app_id '': bogo.toml: TOML parse error at line 19, column 1
+   |
+19 | [approvers.iphone]
+   | ^^^^^^^^^^^^^^^^^^
+missing field `app_id`
+PASS app_id 'app_id = " "': bogo.toml: [approvers.iphone] app_id is empty
+PASS app_id 'app_id = 1': bogo.toml: TOML parse error at line 20, column 10
+   |
+20 | app_id = 1
+   |          ^
+invalid type: integer `1`, expected a string
+PASS max_message_age 0s: bogo.toml: [relay] max_message_age = "0s" is not a duration like "2s" (ms, s, m, h or d)
+PASS max_message_age -1s: bogo.toml: [relay] max_message_age = "-1s" is not a duration like "2s" (ms, s, m, h or d)
+PASS max_message_age 1.5s: bogo.toml: [relay] max_message_age = "1.5s" is not a duration like "2s" (ms, s, m, h or d)
+PASS max_message_age 1 s: bogo.toml: [relay] max_message_age = "1 s" is not a duration like "2s" (ms, s, m, h or d)
+PASS max_message_age 1w: bogo.toml: [relay] max_message_age = "1w" is not a duration like "2s" (ms, s, m, h or d)
+PASS max_message_age 10: bogo.toml: [relay] max_message_age = "10" is not a duration like "2s" (ms, s, m, h or d)
+PASS max_message_age 18446744073709551615d: bogo.toml: [relay] max_message_age = "18446744073709551615d" is not a duration like "2s" (ms, s, m, h or d)
+PASS max_message_age missing: bogo.toml: [relay] max_message_age is not set. BOGO ships it unset on purpose; choose a value (for example "2s") and BOGO will start.
+PASS approve_arm_delay 0s: bogo.toml: [approvers.iphone] approve_arm_delay = "0s" is not a duration like "2s" (ms, s, m, h or d)
+PASS approve_arm_delay -1s: bogo.toml: [approvers.iphone] approve_arm_delay = "-1s" is not a duration like "2s" (ms, s, m, h or d)
+PASS approve_arm_delay 1.5s: bogo.toml: [approvers.iphone] approve_arm_delay = "1.5s" is not a duration like "2s" (ms, s, m, h or d)
+PASS approve_arm_delay 1 s: bogo.toml: [approvers.iphone] approve_arm_delay = "1 s" is not a duration like "2s" (ms, s, m, h or d)
+PASS approve_arm_delay 1w: bogo.toml: [approvers.iphone] approve_arm_delay = "1w" is not a duration like "2s" (ms, s, m, h or d)
+PASS approve_arm_delay 10: bogo.toml: [approvers.iphone] approve_arm_delay = "10" is not a duration like "2s" (ms, s, m, h or d)
+PASS approve_arm_delay 18446744073709551615d: bogo.toml: [approvers.iphone] approve_arm_delay = "18446744073709551615d" is not a duration like "2s" (ms, s, m, h or d)
+PASS approve_arm_delay missing: bogo.toml: [approvers.iphone] approve_arm_delay is not set. BOGO ships it unset on purpose; choose a value (for example "2s") and BOGO will start.
+PASS expiry 0s: bogo.toml: [tools."files__write_file"] expiry = "0s" is not a duration like "10m" (ms, s, m, h or d)
+PASS expiry -1s: bogo.toml: [tools."files__write_file"] expiry = "-1s" is not a duration like "10m" (ms, s, m, h or d)
+PASS expiry 1.5s: bogo.toml: [tools."files__write_file"] expiry = "1.5s" is not a duration like "10m" (ms, s, m, h or d)
+PASS expiry 1 s: bogo.toml: [tools."files__write_file"] expiry = "1 s" is not a duration like "10m" (ms, s, m, h or d)
+PASS expiry 1w: bogo.toml: [tools."files__write_file"] expiry = "1w" is not a duration like "10m" (ms, s, m, h or d)
+PASS expiry 10: bogo.toml: [tools."files__write_file"] expiry = "10" is not a duration like "10m" (ms, s, m, h or d)
+PASS expiry 18446744073709551615d: bogo.toml: [tools."files__write_file"] expiry = "18446744073709551615d" is not a duration like "10m" (ms, s, m, h or d)
+PASS unknown server: bogo.toml: TOML parse error at line 3, column 1
+  |
+3 | unknown_setting = true
+  | ^^^^^^^^^^^^^^^
+unknown field `unknown_setting`, expected one of `port`, `max_body`, `allowed_hosts`
+PASS unknown defaults: bogo.toml: TOML parse error at line 7, column 1
+  |
+7 | unknown_setting = true
+  | ^^^^^^^^^^^^^^^
+unknown field `unknown_setting`, expected one of `policy`, `hide_denied`, `max_pending`
+PASS unknown relay: bogo.toml: TOML parse error at line 11, column 1
+   |
+11 | unknown_setting = true
+   | ^^^^^^^^^^^^^^^
+unknown field `unknown_setting`, expected one of `url`, `max_message_age`, `mailbox_capacity`
+PASS unknown apns: bogo.toml: TOML parse error at line 15, column 1
+   |
+15 | unknown_setting = true
+   | ^^^^^^^^^^^^^^^
+unknown field `unknown_setting`, expected one of `key`, `key_id`, `team_id`, `topic`
+PASS unknown approvers.iphone: bogo.toml: TOML parse error at line 20, column 1
+   |
+20 | unknown_setting = true
+   | ^^^^^^^^^^^^^^^
+unknown field `unknown_setting`, expected one of `app_id`, `app_attest`, `approve_arm_delay`
+PASS unknown upstreams.files: bogo.toml: TOML parse error at line 24, column 1
+   |
+24 | unknown_setting = true
+   | ^^^^^^^^^^^^^^^
+unknown field `unknown_setting`, expected one of `command`, `args`, `env`, `url`, `headers`
+PASS unknown upstreams.remote: bogo.toml: TOML parse error at line 28, column 1
+   |
+28 | unknown_setting = true
+   | ^^^^^^^^^^^^^^^
+unknown field `unknown_setting`, expected one of `command`, `args`, `env`, `url`, `headers`
+PASS unknown tools.files__write_file: bogo.toml: TOML parse error at line 31, column 1
+   |
+31 | unknown_setting = true
+   | ^^^^^^^^^^^^^^^
+unknown field `unknown_setting`, expected one of `policy`, `justification`, `highlight`, `approvers`, `require`, `on_deny`, `expiry`, `mode`, `filter_output`, `filter_action`
+PASS unknown agents.Demo.tools.files__write_file: bogo.toml: TOML parse error at line 42, column 1
+   |
+42 | unknown_setting = true
+   | ^^^^^^^^^^^^^^^
+unknown field `unknown_setting`, expected one of `policy`, `approvers`, `require`
+PASS unknown root: bogo.toml: TOML parse error at line 1, column 1
+  |
+1 | unexpected = 1
+  | ^^^^^^^^^^
+unknown field `unexpected`, expected one of `version`, `server`, `relay`, `apns`, `approvers`, `upstreams`, `defaults`, `tools`, `agents`
+PASS unknown approvers: bogo.toml: TOML parse error at line 20, column 1
+   |
+20 | soft = {}
+   | ^^^^
+unknown field `soft`, expected `iphone`
+PASS unknown agent: bogo.toml: TOML parse error at line 42, column 1
+   |
+42 | unknown = 1
+   | ^^^^^^^
+unknown field `unknown`, expected `tools`
+PASS bad upstream '': bogo.toml: [upstreams.]: upstream names use only a–z, 0–9 and `-`, so `<upstream>__<tool>` splits one way
+PASS bad upstream 'Files': bogo.toml: [upstreams.Files]: upstream names use only a–z, 0–9 and `-`, so `<upstream>__<tool>` splits one way
+PASS bad upstream 'file_s': bogo.toml: [upstreams.file_s]: upstream names use only a–z, 0–9 and `-`, so `<upstream>__<tool>` splits one way
+PASS bad tool write_file: bogo.toml: [tools."write_file"]: tool names are `<upstream>__<tool>`, e.g. "stripe__create_payment_link"
+PASS bad tool absent__write: bogo.toml: [tools."absent__write"]: there is no upstream `absent`
+PASS bad tool files__: bogo.toml: [tools."files__"]: the tool part may use only A–Z, a–z, 0–9, `_`, `.` and `-`
+PASS bad tool files__bad tool: bogo.toml: [tools."files__bad tool"]: the tool part may use only A–Z, a–z, 0–9, `_`, `.` and `-`
+PASS blank agent: bogo.toml: [agents] has an agent with an empty name
+PASS override policy "open": bogo.toml: [agents."Demo".tools."files__write_file"] policy = "open" is not a policy; use "allow", "approve" or "deny"
+PASS override policy true: bogo.toml: TOML parse error at line 42, column 10
+   |
+42 | policy = true
+   |          ^^^^
+invalid type: boolean `true`, expected a string
+PASS override approvers [" "]: bogo.toml: [agents."Demo".tools."files__write_file"] approvers has an empty name
+PASS override approvers ["Demo", "Demo"]: bogo.toml: [agents."Demo".tools."files__write_file"] approvers lists "Demo" twice
+PASS override require { k = 0 }: bogo.toml: [agents."Demo".tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS override require { k = 4294967296 }: bogo.toml: [agents."Demo".tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS override require { k = 1, extra = 1 }: bogo.toml: [agents."Demo".tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS empty override: bogo.toml: [agents."Demo".tools."files__write_file"] is empty; set policy, approvers or require
+PASS secret bad.name 166: secrets.toml: secret `bad`: unknown field `name` (expected only `path`)
+PASS secret "" 167: secrets.toml: secret name `` must use only letters, digits, `_` and `-`
+PASS secret x 168: secrets.toml: secret `x` is empty
+PASS secret x 169: secrets.toml: secret `x` is shorter than 8 characters; BOGO removes every secret from upstream output, so a value this short would corrupt it
+PASS secret x 170: secrets.toml: secret `x` is shorter than 8 characters; BOGO removes every secret from upstream output, so a value this short would corrupt it
+PASS secret x 171: secrets.toml: secret `x` must be a string or { path = "…" } (found: integer)
+PASS secret x 172: secrets.toml: secret `x`: `path` must be a non-empty string
+PASS secret x 173: secrets.toml: secret `x`: `path` must be a non-empty string
+PASS secret x 174: secrets.toml: secret `x`: `path` must be a non-empty string
+PASS secret x 175: secrets.toml: secret `x`: unknown field `extra` (expected only `path`)
+PASS secret x 176: secrets.toml: secret `x` must be a string or { path = "…" } (found: array)
+PASS secret x 177: secrets.toml: not valid TOML (near line 1)
+PASS secret mode 0644: secrets.toml: <probe>/secrets.toml has mode 644; it must be readable only by its owner (chmod 600)
+PASS secret symlink: secrets.toml: <probe>/secrets.toml must be a regular file, not a symlink
+PASS 2MiB accepted by parser: accepted
+PASS unknown currency: accepted
+PASS unknown approver: accepted
+PASS bracket filter is literal: accepted
+PASS development: accepted
+PASS remote http: accepted
+PASS defaults omitted accepted: accepted
+PASS missing required table 187: bogo.toml: TOML parse error at line 1, column 1
+  |
+1 | version = 1
+  | ^
+missing field `server`
+PASS missing required table 188: bogo.toml: TOML parse error at line 1, column 1
+  |
+1 | version = 1
+  | ^
+missing field `defaults`
+PASS iphone missing relay: bogo.toml: [approvers.iphone] needs a [relay] section to reach the phone
+PASS iphone missing apns: bogo.toml: [approvers.iphone] needs an [apns] section to wake the phone
+
+PASS max_message_age wrong type: bogo.toml: TOML parse error at line 12, column 19
+   |
+12 | max_message_age = 1
+   |                   ^
+invalid type: integer `1`, expected a string
+PASS approve_arm_delay wrong type: bogo.toml: TOML parse error at line 22, column 21
+   |
+22 | approve_arm_delay = 1
+   |                     ^
+invalid type: integer `1`, expected a string
+PASS expiry wrong type: bogo.toml: TOML parse error at line 37, column 10
+   |
+37 | expiry = 1
+   |          ^
+invalid type: integer `1`, expected a string
+PASS mailbox above TOML i64: bogo.toml: TOML parse error at line 13, column 20
+   |
+13 | mailbox_capacity = 9223372036854775808
+   |                    ^^^^^^^^^^^^^^^^^^^
+u64 value was too large
+PASS tool policy unknown: bogo.toml: [tools."files__write_file"] policy = "open" is not a policy; use "allow", "approve" or "deny"
+PASS tool policy non-string: bogo.toml: TOML parse error at line 31, column 10
+   |
+31 | policy = 1
+   |          ^
+invalid type: integer `1`, expected a string
+PASS bad quoted secret name: secrets.toml: secret name `bad.name` must use only letters, digits, `_` and `-`
+PASS wrong type env : bogo.toml: TOML parse error at line 26, column 7
+   |
+26 | env = []
+   |       ^^
+invalid type: sequence, expected a map
+PASS wrong type headers : bogo.toml: TOML parse error at line 29, column 11
+   |
+29 | headers = []
+   |           ^^
+invalid type: sequence, expected a map
+PASS wrong type highlight : bogo.toml: TOML parse error at line 33, column 13
+   |
+33 | highlight = []
+   |             ^^
+invalid type: sequence, expected a map
+PASS wrong type filter_output : bogo.toml: TOML parse error at line 39, column 17
+   |
+39 | filter_output = "number"
+   |                 ^^^^^^^^
+invalid type: string "number", expected a sequence
+PASS wrong type approvers : bogo.toml: TOML parse error at line 34, column 13
+   |
+34 | approvers = "Demo"
+   |             ^^^^^^
+invalid type: string "Demo", expected a sequence
+PASS wrong type require : bogo.toml: [tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS wrong type url : bogo.toml: TOML parse error at line 28, column 7
+   |
+28 | url = 1
+   |       ^
+invalid type: integer `1`, expected a string
+PASS duplicate TOML key: bogo.toml: TOML parse error at line 2, column 1
+  |
+2 | version = 1
+  | ^^^^^^^
+duplicate key
+PASS tool threshold extra type: bogo.toml: [tools."files__write_file"] require must be "any" or { k = N } with N at least 1
+PASS valid size suffix B: accepted
+PASS valid highlight root array: accepted
+PASS valid highlight eur: accepted
+PASS all optional tables absent: accepted
+PASS override unreachable accepted: accepted
+
+daemon 2MiB cap: bogo: server max_body exceeds the strict parser limit (1MiB)
+path secret outside: bogo: path secret auth must live inside BOGO home
+path secret existing symlink outside: bogo: path secret auth must live inside BOGO home
+upstream protected ROOT: bogo: upstream command/args reaches BOGO home or its parent
+upstream protected ROOT/keys: bogo: upstream command/args reaches BOGO home or its parent
+upstream protected PARENT: bogo: upstream command/args reaches BOGO home or its parent
+upstream protected --directory=ROOT: bogo: upstream command/args reaches BOGO home or its parent
+APNs value instead of path: bogo: APNs key must be a path secret
