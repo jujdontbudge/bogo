@@ -248,6 +248,13 @@ The first rerun of the usage script stopped because its old agent name already
 existed; it was rerun with a fresh name and succeeded. No product error was
 hidden or check weakened.
 
-Round 2 is pending. No findings declined. Review usage was not exposed. Nothing
-was pushed. Before review: 29 files, 2960 insertions, 6 deletions; final size is
-recorded after round 2.
+Round 2: `codex`, `gpt-6.1-sol`, medium effort. Verdict: APPROVE. R1 and R2
+were marked resolved, with no new findings. The reviewer reran the two retained
+regressions: 2 passed, 0 failed. No findings declined. Review usage was not
+exposed. Nothing was pushed. Before review: 29 files, 2960 insertions, 6 deletions;
+after fixes: 30 files, 3218 insertions, 22 deletions (before this final note).
+
+The verification LaunchAgent was stopped and its installed plist removed after
+checking its executable and canonical home matched this test. The prepared
+plist and private test home remain available; a future login will not start
+this temporary verification configuration.
