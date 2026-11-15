@@ -122,6 +122,9 @@ key agreement with the certificate, Apple validation category and bundle version
 The caller supplies trusted time, the exact App ID prefix + bundle ID, allowed
 environments and accepted bundle versions. Production accepts Apple's categories
 2 (TestFlight) and 4 (App Store); explicitly allowed development accepts 3.
+The category is Apple's four-byte little-endian UInt32 CBOR byte string.
+Certificate signing digests (SHA-256/SHA-384) are selected independently of
+the P-256/P-384 issuer curve, as in Apple's published sample chain.
 The registration driver computes `registration_client_data_hash` from its own
 transcript hash, one-use challenge and submitted registration keys; it must
 consume the challenge and reject previously registered transactions/keys. A

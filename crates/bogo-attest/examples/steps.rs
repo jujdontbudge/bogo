@@ -58,7 +58,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ]);
     auth.extend(encoded(&cose));
     let extensions = map(vec![
-        ("apple_validation_category_01", 4.into()),
+        (
+            "apple_validation_category_01",
+            Value::Bytes(4u32.to_le_bytes().to_vec()),
+        ),
         ("apple_bundle_version_01", Value::Text("42".into())),
     ]);
     auth.extend(encoded(&extensions));
@@ -163,7 +166,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     rejected(
         "category (development binary in production)",
         validation_category(
-            &map(vec![("apple_validation_category_01", 3.into())]),
+            &map(vec![(
+                "apple_validation_category_01",
+                Value::Bytes(3u32.to_le_bytes().to_vec()),
+            )]),
             Environment::Production,
         ),
         Step::ValidationCategory,

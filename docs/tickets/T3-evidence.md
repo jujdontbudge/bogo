@@ -146,4 +146,36 @@ certificate keys. Bundle versions are explicit caller policy.
 - Public hosting, systemd, DNS, firewall, certificate issuance/renewal, VPS
   deployment, or production APNs. These are outside this local-only checkpoint.
 
-Sol review ledger is recorded below after review.
+## Sol review ledger
+
+Model: `gpt-6.1-sol`, medium reasoning effort; token usage not exposed.
+Round 1: CHANGES. Both findings accepted, none declined. No push or PR.
+
+- S1 (blocker), fixed: select the issuer curve independently of the certificate
+  signature digest and use prehash verification. Sol's public Apple leaf and
+  intermediate fixture regression failed before the fix at CertificateChain
+  and passed afterward. Independent check:
+  `openssl verify -attime 1776794400 -CAfile
+  crates/bogo-attest/assets/apple-app-attestation-root.pem -untrusted
+  /tmp/bogo-review-proof/intermediate.pem /tmp/bogo-review-proof/leaf.pem`
+  returned `/tmp/bogo-review-proof/leaf.pem: OK`.
+- S2 (blocker), fixed: category is a four-byte little-endian UInt32 CBOR byte
+  string, not a CBOR integer. Sol's TestFlight/App Store regression failed
+  before the fix (category 2 rejected), then both categories passed. The
+  synthetic example now uses Apple's encoding.
+
+The two Sol regression tests and public certificate fixtures are retained.
+`cargo test -p bogo-attest --test review_s1 --test review_s2 --no-fail-fast --
+--nocapture` first returned 101 (both failed), then returned 0 (both passed).
+The named-step example was run again and retained all expected rejections.
+`cargo check -p bogo-attest --all-targets` and
+`cargo clippy --workspace --all-targets -- -D warnings` passed after the fixes.
+The real public chain fixture now adds positive pinned-chain coverage; a live
+device attestation and registration are still deferred as listed above.
+
+The full `cargo test --workspace` suite also passed after the fixes: all five
+integration checks, including the two new Sol regressions.
+
+Round 2: pending, limited to these fixes and S1/S2. Before review, the scoped
+diff from the ticket baseline was 21 files, 5390 insertions and 84 deletions
+(including Cargo.lock). The final size will be recorded after review.

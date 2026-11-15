@@ -6,8 +6,8 @@ use der::{
     Decode, DecodePem, Encode, Sequence,
     asn1::{ObjectIdentifier, OctetString},
 };
-use p256::ecdsa::signature::Verifier;
-use sha2::{Digest, Sha256};
+use p256::ecdsa::signature::hazmat::PrehashVerifier;
+use sha2::{Digest, Sha256, Sha384};
 use std::time::Duration;
 use x509_cert::{
     Certificate,
@@ -136,22 +136,25 @@ fn certificate_signature(cert: &Certificate, issuer: &Certificate) -> Result<()>
     }
     let bytes = cert.tbs_certificate.to_der().map_err(|_| Error { step })?;
     let sig = cert.signature.as_bytes().ok_or(Error { step })?;
-    let ok = match cert.signature_algorithm.oid.to_string().as_str() {
-        "1.2.840.10045.4.3.2"
-            if ec_curve(issuer, ObjectIdentifier::new_unwrap("1.2.840.10045.3.1.7")) =>
-        {
-            p256::ecdsa::VerifyingKey::from_sec1_bytes(public_key(issuer, step)?)
-                .ok()
-                .zip(p256::ecdsa::Signature::from_der(sig).ok())
-                .is_some_and(|(k, s)| k.verify(&bytes, &s).is_ok())
-        }
-        "1.2.840.10045.4.3.3" if ec_curve(issuer, ObjectIdentifier::new_unwrap("1.3.132.0.34")) => {
-            p384::ecdsa::VerifyingKey::from_sec1_bytes(public_key(issuer, step)?)
-                .ok()
-                .zip(p384::ecdsa::Signature::from_der(sig).ok())
-                .is_some_and(|(k, s)| k.verify(&bytes, &s).is_ok())
-        }
-        _ => false,
+    // Certificate signature digest and issuer curve are independent. Apple's
+    // App Attest leaf can use SHA-256 with its intermediate's P-384 key.
+    let digest = match cert.signature_algorithm.oid.to_string().as_str() {
+        "1.2.840.10045.4.3.2" => Sha256::digest(&bytes).to_vec(),
+        "1.2.840.10045.4.3.3" => Sha384::digest(&bytes).to_vec(),
+        _ => return reject(step),
+    };
+    let ok = if ec_curve(issuer, ObjectIdentifier::new_unwrap("1.2.840.10045.3.1.7")) {
+        p256::ecdsa::VerifyingKey::from_sec1_bytes(public_key(issuer, step)?)
+            .ok()
+            .zip(p256::ecdsa::Signature::from_der(sig).ok())
+            .is_some_and(|(k, s)| k.verify_prehash(&digest, &s).is_ok())
+    } else if ec_curve(issuer, ObjectIdentifier::new_unwrap("1.3.132.0.34")) {
+        p384::ecdsa::VerifyingKey::from_sec1_bytes(public_key(issuer, step)?)
+            .ok()
+            .zip(p384::ecdsa::Signature::from_der(sig).ok())
+            .is_some_and(|(k, s)| k.verify_prehash(&digest, &s).is_ok())
+    } else {
+        false
     };
     if !ok {
         return reject(step);
@@ -340,9 +343,12 @@ pub fn credential_key(auth: &[u8], key: &[u8]) -> Result<Value> {
 /// development accepts the development signing identity category only.
 pub fn validation_category(extensions: &Value, env: Environment) -> Result<u32> {
     let step = Step::ValidationCategory;
-    let n = number(field(extensions, "apple_validation_category_01", step)?)
-        .and_then(|v| u32::try_from(v).ok())
-        .ok_or(Error { step })?;
+    // Apple encodes this UInt32 as a four-byte little-endian CBOR byte string.
+    let bytes = binary(
+        field(extensions, "apple_validation_category_01", step)?,
+        step,
+    )?;
+    let n = u32::from_le_bytes(bytes.try_into().map_err(|_| Error { step })?);
     if !match env {
         Environment::Production => [2, 4].contains(&n),
         Environment::Development => n == 3,
