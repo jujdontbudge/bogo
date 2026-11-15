@@ -240,7 +240,8 @@ impl Mac {
         };
         if let Some(why) = why {
             self.append(vec![entry]).await?;
-            println!("✗ denial from {who} for {} ignored ({why})", short(&req));
+            let why = if why == "unknown" { "no such request in this boot" } else { why };
+            println!("✗ denial from {who} for {} ignored: {why}", short(&req));
             return Ok(vec![]);
         }
         let (_, to, vector) = found.expect("checked");

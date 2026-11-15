@@ -48,6 +48,12 @@ struct Args {
     /// Send this file as the App Attest object (to check that bad evidence is refused).
     #[arg(long)]
     attestation_file: Option<PathBuf>,
+    /// Register with this APNs device token (64 hex) so the Mac sends wake-ups.
+    #[arg(long)]
+    push_token: Option<String>,
+    /// APNs environment for --push-token: development or production.
+    #[arg(long, default_value = "development")]
+    push_env: String,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -97,7 +103,9 @@ struct Store {
     /// Applied inbound message IDs (tombstones).
     done: Vec<String>,
     outbox: Vec<Out>,
-    app_lines: usize,
+    /// Lines of the app's `received.jsonl` already forwarded; on first use,
+    /// everything the app wrote before the bridge started is skipped.
+    app_lines: Option<usize>,
 }
 
 struct Phone {
@@ -155,8 +163,22 @@ impl Phone {
     fn enqueue(&mut self, msg: &PhoneMsg, id: [u8; 16], body: Option<String>) -> Option<usize> {
         let mac = self.mac()?.clone();
         let body = body.unwrap_or_else(|| serde_json::to_string(msg).expect("message serializes"));
+        // A resend under the same message ID must be the same bytes, or the
+        // relay refuses it as a conflict while the first copy is queued.
+        let sealed = self.store.outbox.iter().find(|o| o.msg_id.0 == id && o.body == body);
+        let envelope = match sealed {
+            Some(o) => o.envelope.0.clone(),
+            None => self.seal(&mac, msg, id, &body)?,
+        };
+        let n = self.store.outbox.len() + 1;
+        let kind = body_kind(&body);
+        self.store.outbox.push(Out { n, msg_id: B(id.to_vec()), kind, body, envelope: B(envelope), sent: false });
+        Some(n)
+    }
+
+    fn seal(&self, mac: &MacReg, msg: &PhoneMsg, id: [u8; 16], body: &str) -> Option<Vec<u8>> {
         let secret = bogo_e2e::secret_from(&mac.e2e_secret.0).ok()?;
-        let envelope = bogo_e2e::seal(
+        bogo_e2e::seal(
             &secret,
             &bogo_e2e::public_from(&mac.mac_e2e.0).ok()?,
             &mac.bogo_id.array()?,
@@ -164,11 +186,7 @@ impl Phone {
             Header { direction: Direction::PhoneToMac, kind: msg.kind(), id },
             body.as_bytes(),
         )
-        .ok()?;
-        let n = self.store.outbox.len() + 1;
-        let kind = body_kind(&body);
-        self.store.outbox.push(Out { n, msg_id: B(id.to_vec()), kind, body, envelope: B(envelope), sent: false });
-        Some(n)
+        .ok()
     }
 
     fn app_inbox(&self, command: serde_json::Value) {
@@ -199,6 +217,7 @@ type Shared = Arc<Mutex<Phone>>;
 struct Ctx {
     phone: Shared,
     attestation: Option<Vec<u8>>,
+    push: Option<(B, String)>,
     client: Arc<Client>,
     mailbox: String,
     lines: Mutex<Lines<BufReader<Stdin>>>,
@@ -249,9 +268,14 @@ async fn run(args: Args) -> Result<(), String> {
         }
     }
     let attestation = args.attestation_file.as_ref().map(std::fs::read).transpose().map_err(|e| e.to_string())?;
+    let push = match &args.push_token {
+        Some(t) => Some((B(hex::decode(t).ok().filter(|t| t.len() == 32).ok_or("--push-token must be 64 hex")?), args.push_env.clone())),
+        None => None,
+    };
     let ctx = Arc::new(Ctx {
         phone: phone.clone(),
         attestation,
+        push,
         client: client.clone(),
         mailbox,
         lines: Mutex::new(BufReader::new(tokio::io::stdin()).lines()),
@@ -268,6 +292,8 @@ async fn run(args: Args) -> Result<(), String> {
                 relay_ca: ca,
                 app_data: None,
                 attestation_file: None,
+                push_token: None,
+                push_env: String::new(),
             };
             let mut client = ctx.client.clone();
             loop {
@@ -349,12 +375,14 @@ async fn tail_app(ctx: &Ctx) {
     let file = app.join("Library/Application Support/BOGO/stand-in/received.jsonl");
     let Ok(text) = std::fs::read_to_string(&file) else { return };
     let lines: Vec<&str> = text.lines().collect();
-    if lines.len() < p.store.app_lines {
-        p.store.app_lines = 0;
-    }
-    let start = p.store.app_lines;
+    let start = match p.store.app_lines {
+        Some(n) if n <= lines.len() => n,
+        Some(_) => 0,
+        None => lines.len(),
+    };
+    p.store.app_lines = Some(start);
     for line in &lines[start..] {
-        p.store.app_lines += 1;
+        p.store.app_lines = p.store.app_lines.map(|n| n + 1);
         let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else { continue };
         let (Some(body), Some(id)) = (v["body"].as_str(), v["msgId"].as_str()) else { continue };
         let Ok(msg) = serde_json::from_str::<PhoneMsg>(body) else { continue };
@@ -362,6 +390,11 @@ async fn tail_app(ctx: &Ctx) {
             Some(id) => id,
             None => Sha256::digest(id.as_bytes())[..16].try_into().expect("16"),
         };
+        if matches!(msg, PhoneMsg::Removed {})
+            && let Some(m) = p.store.mac.as_mut()
+        {
+            m.state = "removed".into();
+        }
         if let PhoneMsg::Approval { req_id, .. } | PhoneMsg::Denial { req_id, .. } = &msg
             && let Some(r) = p.rec(&req_id.0)
             && r.phase == "pending"
@@ -516,14 +549,13 @@ async fn inbound(ctx: &Ctx, client: &Client) -> Result<(), String> {
                     println!("  ← registered again (already active; ignored)");
                 }
             }
-            MacMsg::RevokedAck {} => {
-                if let Some(m) = p.store.mac.as_mut()
-                    && m.state == "removed"
-                {
+            MacMsg::RevokedAck {} => match p.store.mac.as_mut() {
+                Some(m) if m.state == "removed" => {
                     m.state = "gone".into();
                     println!("  ← revokedAck: the Mac confirmed the removal; channel keys can go");
                 }
-            }
+                _ => println!("  ← revokedAck, but this phone did not remove the Mac; ignored"),
+            },
         }
         p.store.done.push(m.msg_id.clone());
         p.save();
@@ -694,8 +726,8 @@ async fn add(ctx: &Ctx, label: &str) -> Result<(), String> {
         phone_e2e: B(bogo_e2e::public_bytes(&e2e_public).to_vec()),
         phone_relay: B(relay_pub.to_vec()),
         attestation,
-        push_token: None,
-        push_env: None,
+        push_token: ctx.push.as_ref().map(|(t, _)| t.clone()),
+        push_env: ctx.push.as_ref().map(|(_, e)| e.clone()),
         encoding_versions: vec![1],
     };
     let plaintext = serde_json::to_vec(&submit).map_err(|e| e.to_string())?;
