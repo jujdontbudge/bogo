@@ -527,7 +527,7 @@ impl Validator<'_> {
                 }
                 other => {
                     return Err(err(format!(
-                        "{what} must be a string or {{ secret = \"name\" }}, not a {}",
+                        "{what} must be a string or {{ secret = \"name\" }} (found: {})",
                         other.type_str()
                     )));
                 }

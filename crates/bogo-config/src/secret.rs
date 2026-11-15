@@ -138,7 +138,7 @@ impl Secrets {
                 }
                 other => {
                     return Err(err(format!(
-                        "secret `{name}` must be a string or {{ path = \"…\" }}, not a {}",
+                        "secret `{name}` must be a string or {{ path = \"…\" }} (found: {})",
                         other.type_str()
                     )));
                 }
