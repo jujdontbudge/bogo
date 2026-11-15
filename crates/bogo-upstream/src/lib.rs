@@ -24,7 +24,7 @@ pub struct CallId(pub String);
 pub struct Forward {
     pub upstream: String,
     pub tool: String,
-    pub arguments: JVal,
+    pub arguments: Option<JVal>,
 }
 pub trait Gate: Send + Sync + 'static {
     fn dispatch(&self, call: CallId) -> BoxFuture<'_, Result<Forward, Error>>;

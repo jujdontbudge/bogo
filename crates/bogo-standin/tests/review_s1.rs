@@ -85,6 +85,8 @@ async fn revoked_vote_cannot_help_settle_a_two_of_three_request() {
             "review-local",
             "--max-message-age",
             "86400",
+            "--mailbox-capacity",
+            "100",
             "--database",
         ])
         .arg(tmp.0.join("relay.sqlite"))

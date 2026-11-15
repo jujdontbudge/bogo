@@ -81,3 +81,19 @@ pub fn verify(
     }
     Ok(report)
 }
+
+/// Verify canonical request bytes and signatures through the same compiled Lean code
+/// that handles live calls. The existing `verify` remains available to the stand-in.
+pub fn verify_with_core(entries: &[Entry], core: &bogo_core::Core) -> Result<Report, LogError> {
+    for entry in entries {
+        if let LogEvent::RequestCreated { request, .. } = &entry.event {
+            let decoded=core.decode_request(&request.0).map_err(|e|LogError::Corrupt{line:entry.line,why:e.to_string()})?;
+            if decoded.as_deref()!=Some(request.0.as_slice()) {
+                return Err(LogError::Corrupt{line:entry.line,why:"request is not canonical BOGO encoding".into()});
+            }
+        }
+    }
+    verify(entries, &|alg,pk,message,proof| {
+        message.strip_prefix(APPROVAL_DOMAIN).is_some_and(|request|core.check_approval(alg,pk,request,proof).unwrap_or(false))
+    })
+}

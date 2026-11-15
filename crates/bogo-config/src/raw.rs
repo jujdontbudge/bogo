@@ -35,6 +35,7 @@ pub struct Server {
 pub struct Relay {
     pub url: String,
     pub max_message_age: Option<String>,
+    pub mailbox_capacity: Option<i64>,
 }
 
 #[derive(Deserialize)]

@@ -37,7 +37,7 @@ impl StandIn {
             Forward {
                 upstream: upstream.into(),
                 tool: tool.into(),
-                arguments: JVal::Obj(Obj::new(members).unwrap()),
+                arguments: Some(JVal::Obj(Obj::new(members).unwrap())),
             },
         );
     }

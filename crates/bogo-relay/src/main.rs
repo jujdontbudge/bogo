@@ -32,7 +32,7 @@ struct Args {
     /// Explicit retention; never interpreted as approval expiry.
     #[arg(long)]
     max_message_age: u64,
-    #[arg(long, default_value_t = 1000)]
+    #[arg(long)]
     mailbox_capacity: u64,
 }
 struct Lobby {
