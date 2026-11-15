@@ -1,0 +1,16 @@
+name = "bogo"
+version = "0.1.0"
+defaultTargets = ["BogoCore", "BogoProofs", "BogoVectors"]
+
+# The decision core and the request encoding. Imports `Init` and `Std` only.
+[[lean_lib]]
+name = "BogoCore"
+
+# The proofs. Never linked into any binary; nothing imports it.
+[[lean_lib]]
+name = "BogoProofs"
+
+# Writes `../vectors/*.json` from the BogoCore encoder: `lake exe BogoVectors`.
+[[lean_exe]]
+name = "BogoVectors"
+root = "BogoVectors.Main"

@@ -1,0 +1,6 @@
+{"version": "1.3.0",
+ "packagesDir": ".lake/packages",
+ "packages": [],
+ "name": "bogo",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}
