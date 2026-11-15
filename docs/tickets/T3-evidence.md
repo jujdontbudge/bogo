@@ -176,6 +176,14 @@ device attestation and registration are still deferred as listed above.
 The full `cargo test --workspace` suite also passed after the fixes: all five
 integration checks, including the two new Sol regressions.
 
-Round 2: pending, limited to these fixes and S1/S2. Before review, the scoped
-diff from the ticket baseline was 21 files, 5390 insertions and 84 deletions
-(including Cargo.lock). The final size will be recorded after review.
+Round 2: APPROVE on behavior head `66043665abbaf53a581c21e34a2c5a5f5991eac3`.
+S1 and S2 resolved, no new blocker or should findings, no declined findings.
+Sol reran both focused regressions, the named-step example, the package check,
+strict package Clippy, and diff checks. All passed. Two rounds total with
+`gpt-6.1-sol` on medium reasoning effort; usage not exposed. Only this review
+record changed after approval. Nothing was pushed or deployed.
+
+Scoped diff from the ticket baseline before review: 21 files, 5390 insertions,
+84 deletions (including Cargo.lock). After review: 25 files, 5482 insertions, 84 deletions.
+The growth consists of the two regression tests, Apple's public certificate
+fixtures, the minimal App Attest fixes and their evidence/documentation.
