@@ -216,6 +216,12 @@ fn normalize(path: &Path) -> Result<PathBuf> {
         return Ok(p);
     }
     let parent = path.parent().ok_or("invalid path")?;
+    // A dangling symlink fails canonicalize, but it still points somewhere: follow its
+    // target, so a link to a not-yet-created outside path is judged by where it points.
+    if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
+        let target = std::fs::read_link(&path).map_err(error)?;
+        return normalize(&parent.join(target));
+    }
     Ok(normalize(parent)?.join(path.file_name().ok_or("invalid path")?))
 }
 fn load(root: &Path) -> Result<(Config, bogo_config::Secrets)> {

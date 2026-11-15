@@ -14,8 +14,8 @@ verify the [reference Docker sandbox](../sandbox/README.md), with no owner home,
 BOGO state, owner socket, upstream credentials or Docker socket mounted into
 the agent. Local upstream executables run with the daemon's authority and
 must be trusted; config path checks are not containment for arbitrary code.
-A [known dangling-symlink validation bug](verification/user-docs.md#reported-bug-dangling-symlink-path-secret)
-also means those checks must not be treated as complete path containment.
+The path checks run once, at startup, so a link changed after startup is not
+re-checked; they are not complete path containment.
 
 ## Protection within that boundary
 

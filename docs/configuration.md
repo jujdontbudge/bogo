@@ -202,11 +202,9 @@ not rejected as blank by this parser; do not use one.
 Only a leading `~/` expands to the process's home, **not** `--home`. `$VAR`,
 `~other` and command substitution are not expanded. The daemon normalizes path
 secrets and refuses paths resolving outside BOGO home. Existing resolvable
-symlink escapes are refused. **Known bug:** a dangling symlink can pass this
-check and later resolve outside BOGO home when its target is created. Do not
-use dangling symlinks or rely on this check as containment; use existing,
-owner-controlled absolute paths. See the
-[reproduction](verification/user-docs.md#reported-bug-dangling-symlink-path-secret).
+symlink escapes are refused, and so are dangling symlinks: a link whose target
+does not exist yet is judged by where it points. The check runs at startup only,
+so a link changed while BOGO runs is not re-checked.
 Path secrets supply filenames; the owner/upstream is responsible
 for the file's contents and permissions. Keep credential files private (0600).
 The secrets file itself must be a regular file, not a symlink, with no group
