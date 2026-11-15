@@ -209,14 +209,25 @@ impl Home {
         }
     }
 
-    /// Increment and sync `state/boot`. It orders boot notices only.
+    /// Increment and sync `state/boot`. It orders boot notices only. The log
+    /// is authoritative: a lost or stale `state/boot` never goes below the
+    /// highest boot it records.
     pub fn next_boot(&self, _lock: &WriterLock) -> Result<u64, StateError> {
         let path = self.state_dir().join("boot");
-        let current = std::fs::read(&path)
+        let stored = std::fs::read(&path)
             .ok()
             .and_then(|b| serde_json::from_slice::<Boot>(&b).ok())
             .map_or(0, |b| b.boot_seq);
-        let next = current + 1;
+        let logged = bogo_log::read(&self.log_path())?
+            .0
+            .iter()
+            .filter_map(|e| match e.event {
+                bogo_log::LogEvent::Boot { boot_seq, .. } => Some(boot_seq),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0);
+        let next = stored.max(logged) + 1;
         write_atomic(
             &path,
             &serde_json::to_vec(&Boot {
