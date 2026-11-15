@@ -15,7 +15,7 @@
 mod raw;
 mod secret;
 
-pub use secret::{Secret, SecretValue, Secrets};
+pub use secret::{MIN_SECRET_LEN, Secret, SecretValue, Secrets};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;

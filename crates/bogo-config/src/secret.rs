@@ -53,6 +53,9 @@ impl fmt::Debug for Secret {
     }
 }
 
+/// The shortest secret value BOGO accepts (see [`Secrets::parse`]).
+pub const MIN_SECRET_LEN: usize = 8;
+
 /// Every secret in `secrets.toml`, by name.
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Secrets {
@@ -115,6 +118,13 @@ impl Secrets {
                 toml::Value::String(s) => {
                     if s.is_empty() {
                         return Err(err(format!("secret `{name}` is empty")));
+                    }
+                    // Every secret is scrubbed from upstream traffic, so a very short value
+                    // would match ordinary text and corrupt the upstream's messages.
+                    if s.trim().chars().count() < MIN_SECRET_LEN {
+                        return Err(err(format!(
+                            "secret `{name}` is shorter than {MIN_SECRET_LEN} characters; BOGO removes every secret from upstream output, so a value this short would corrupt it"
+                        )));
                     }
                     SecretValue::Value(s)
                 }

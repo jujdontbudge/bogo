@@ -25,7 +25,12 @@ impl Scrubber {
                 }
                 // Stderr arrives as lines; reserve every component of multiline secrets
                 // too, so line-oriented logging cannot disclose pieces of a credential.
-                needles.extend(value.lines().map(str::to_owned));
+                needles.extend(
+                    value
+                        .lines()
+                        .filter(|l| l.trim().chars().count() >= bogo_config::MIN_SECRET_LEN)
+                        .map(str::to_owned),
+                );
                 needles.push(value);
             }
         }
