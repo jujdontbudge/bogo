@@ -7,6 +7,8 @@ This is the owner's whole experience of BOGO: the screen where they decide. The 
 
 The real device has a Secure Enclave and App Attest, but the Simulator has neither, and the owner wants everything that needs their phone or face deferred to one device session at the very end. So the Simulator path uses a simulator-only signing key with simulated Face ID, compiled only into Simulator/test builds and impossible to reach in a device or release build; the real Secure Enclave key (Face ID–bound, invalidated when enrollment changes) is written now and exercised in that final session.
 
+The owner wants the BOGO UI and UX "extremely clean and simple". Before designing, study real examples of clean, minimal iOS design (Apple's own apps and Human Interface Guidelines, and the best minimal apps you can find) and note what makes them calm and clear. Then work in loops: build a screen, run it in the Simulator, screenshot it, critique it honestly against those references, and improve it. Repeat many times on every screen (Inbox, review, History, Macs, Add Mac, empty and unreadable states, light and dark mode) until each one is ultra clean: nothing on screen that doesn't need to be there, one clear thing to do, generous spacing, native components and type. A screen that merely works does not count as done. Clean never wins over truth, though: the review screen still shows every argument and keeps "Will execute" and "Agent's reason (unverified)" clearly distinct.
+
 The rest of the app must keep working exactly as it does: every other capability, Apple Bridge pairing and delivery. If building BOGO and leaving the rest of the app untouched pull against each other, the rest of the app wins, except where the spec says the old Approvals feature and capture approval go away.
 
 ## Context
@@ -36,6 +38,7 @@ The rest of the app must keep working exactly as it does: every other capability
 6. Build a release/device configuration and show the simulator key path is absent (for example by symbol or build-setting inspection).
 7. Open the other tabs and capabilities and compare with the app before the change: unchanged. A capture command is answered as denied.
 8. `make lint` and `make test` pass.
+9. Show the design loop: the references you studied, and for each screen the first and final screenshots plus the main changes between them, in light and dark mode. Judge the final screens the way a demanding designer would: would they hold up next to Apple's own apps?
 
 ## Evidence of done
 When you are done, use it yourself the way a user would: run the real app and go through it like they do. If it has no user, use it the way its real client would, such as a program calling the API or an agent calling the tool. Check that it works, that it does everything this ticket asks, and that you hit no other problems. Go through every step in How to verify and check every guardrail. Follow the `agent-testing` skill for all testing. If you changed code, run the `sol-loop` skill on it and give Sol this ticket. In your report, show what you saw at each step: screenshots, a video, or the output. Then list anything you did not check.
