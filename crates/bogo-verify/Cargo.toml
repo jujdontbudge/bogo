@@ -1,0 +1,20 @@
+[package]
+name = "bogo-verify"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints.rust]
+unsafe_code = "warn"
+
+[lints.clippy]
+all = "warn"
+
+[dependencies]
+p256 = { version = "0.13", features = ["ecdsa"] }
+ed25519-dalek = { version = "2", optional = true }
+
+[features]
+default = []
+test-approvers = ["dep:ed25519-dalek"]
