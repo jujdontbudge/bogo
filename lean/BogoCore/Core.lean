@@ -7,9 +7,10 @@ does no I/O, reads the time only from its inputs, and mints request sequence num
 The final gate (`dispatch`) does not trust anything it stored earlier. At the moment of the
 upstream write it re-checks, from the current state alone, everything the promise needs: the
 call is live, its session is open and bound to the request, the agent is active, the expiry has
-not passed, the tool is not denied now, the request is canonical, and enough distinct approvers
-that are registered now and eligible for this request have signatures that `verify` accepts
-over this request's exact bytes. That keeps the proof of each forward local to one step.
+not passed, the tool still maps to the same upstream tool and still needs approval under the
+policy in force now, the request is canonical, and enough distinct approvers that are
+registered now and eligible now have signatures that `verify` accepts over this request's exact
+bytes. That keeps the proof of each forward local to one step.
 
 `verify` is the one hook into Rust (`bogo_rs_verify`); what it means is assumption A1.
 -/
@@ -553,7 +554,24 @@ def allowedGate (s : State) (cr : CallRec) (name u t : String) : Bool :=
      | none => false) &&
     (resolve s.cfg (agentName s sess.agent) name).kind == .allow
 
-/-- A protected call may run now. -/
+/-- At the gate, a counted approval stands if its approver was eligible when the request was
+admitted, is registered now with the key it signed with and a name the policy in force now
+makes eligible, and its proof verifies over this request's exact bytes. -/
+def standsNow (s : State) (q : ReqRec) (pol : ToolPolicy) (e : Counted) : Bool :=
+  memB e.id q.eligible &&
+  s.approvers.any (fun a => eqB a.id e.id && a.alg == e.alg && eqB a.pk e.pk &&
+    (pol.approvers.isEmpty || pol.approvers.contains a.name)) &&
+  verify e.alg e.pk (recMsg q) e.proof
+
+/-- Enough distinct approvals stand now for both the requirement the request was admitted with
+and the one in force now. -/
+def gateMet (s : State) (q : ReqRec) (pol : ToolPolicy) : Bool :=
+  let v := q.counted.filter (standsNow s q pol)
+  decide ((v.map (·.id)).Nodup) && decide (q.requirement.need ≤ v.length) &&
+    decide (pol.requirement.need ≤ v.length)
+
+/-- A protected call may run now. Everything is judged against the current state: the session,
+the agent, the catalog and the effective policy for this agent and tool right now. -/
 def protectedGate (s : State) (cr : CallRec) (q : ReqRec) (now : Nat) : Bool :=
   q.status == .settled &&
   q.call.any (eqB cr.id) &&
@@ -562,10 +580,12 @@ def protectedGate (s : State) (cr : CallRec) (q : ReqRec) (now : Nat) : Bool :=
    | some sess => eqB sess.agent q.req.agentId && agentActive s sess.agent
    | none => false) &&
   notExpired q.req now &&
-  (findCatalog s q.name).isSome &&
-  !((resolve s.cfg (agentName s q.req.agentId) q.name).kind == .deny) &&
+  (match findCatalog s q.name with
+   | some e => e.upstream == q.req.upstream && e.tool == q.req.tool
+   | none => false) &&
+  (resolve s.cfg (agentName s q.req.agentId) q.name).kind == .approve &&
   q.req.wf &&
-  requirementMet s q
+  gateMet s q (resolve s.cfg (agentName s q.req.agentId) q.name)
 
 def onDispatch (s : State) (c : CallId) (now : Nat) : State × List Output :=
   match findCall s c with

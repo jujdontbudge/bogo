@@ -65,7 +65,7 @@ theorem countedValid_spec {s : State} {q : ReqRec} {e : Counted}
   obtain ⟨⟨h1, h2⟩, h3⟩ := h
   refine ⟨h1, ?_, h3⟩
   obtain ⟨a, ha, h4⟩ := h2
-  simp only [Bool.and_eq_true, eqB_iff, beq_iff_eq] at h4
+  simp only [eqB_iff, beq_iff_eq] at h4
   exact ⟨a, ha, h4.1.1, h4.1.2, h4.2⟩
 
 /-! ### The gates -/
@@ -89,19 +89,42 @@ theorem allowedGate_spec {s : State} {cr : CallRec} {name u t : String}
       exact ⟨e, he, h2.1, h2.2⟩
     · simp at h2
 
+/-- What `standsNow` checks, spelled out. -/
+theorem standsNow_spec {s : State} {q : ReqRec} {pol : ToolPolicy} {e : Counted}
+    (h : standsNow s q pol e = true) :
+    e.id ∈ q.eligible ∧
+      (∃ a ∈ s.approvers, a.id = e.id ∧ a.alg = e.alg ∧ a.pk = e.pk ∧
+        (pol.approvers = [] ∨ a.name ∈ pol.approvers)) ∧
+      verify e.alg e.pk (sigMsg (encode q.req)) e.proof = true := by
+  simp only [standsNow, recMsg, Bool.and_eq_true, memB_iff, List.any_eq_true] at h
+  obtain ⟨⟨h1, a, ha, h2⟩, h3⟩ := h
+  simp only [eqB_iff, beq_iff_eq, Bool.or_eq_true, List.isEmpty_iff,
+    List.contains_iff_mem] at h2
+  exact ⟨h1, ⟨a, ha, h2.1.1.1, h2.1.1.2, h2.1.2, h2.2⟩, h3⟩
+
+/-- Distinct standing approvals, enough for both requirements. -/
+theorem gateMet_spec {s : State} {q : ReqRec} {pol : ToolPolicy} (h : gateMet s q pol = true) :
+    ∃ S : List Counted, (∀ e ∈ S, e ∈ q.counted ∧ standsNow s q pol e = true) ∧
+      (S.map (·.id)).Nodup ∧ q.requirement.need ≤ S.length ∧ pol.requirement.need ≤ S.length := by
+  simp only [gateMet, Bool.and_eq_true, decide_eq_true_eq] at h
+  refine ⟨q.counted.filter (standsNow s q pol), fun e he => ?_, h.1.1, h.1.2, h.2⟩
+  simpa using he
+
 /-- What `protectedGate` checks, spelled out. -/
 theorem protectedGate_spec {s : State} {cr : CallRec} {q : ReqRec} {now : Nat}
     (h : protectedGate s cr q now = true) :
     q.status = .settled ∧ q.call = some cr.id ∧ q.req.session = cr.session ∧
       (∃ sess, findSession s cr.session = some sess ∧ sess.agent = q.req.agentId ∧
         agentActive s sess.agent = true) ∧
-      notExpired q.req now = true ∧ (findCatalog s q.name).isSome = true ∧
-      (resolve s.cfg (agentName s q.req.agentId) q.name).kind ≠ .deny ∧
-      q.req.wf = true ∧ requirementMet s q = true := by
+      notExpired q.req now = true ∧
+      (∃ e, findCatalog s q.name = some e ∧ e.upstream = q.req.upstream ∧
+        e.tool = q.req.tool) ∧
+      (resolve s.cfg (agentName s q.req.agentId) q.name).kind = .approve ∧
+      q.req.wf = true ∧ gateMet s q (resolve s.cfg (agentName s q.req.agentId) q.name) = true := by
   unfold protectedGate at h
-  simp only [Bool.and_eq_true, beq_iff_eq, Bool.not_eq_true', beq_eq_false_iff_ne] at h
+  simp only [Bool.and_eq_true, beq_iff_eq] at h
   obtain ⟨⟨⟨⟨⟨⟨⟨⟨h1, h2⟩, h3⟩, h4⟩, h5⟩, h6⟩, h7⟩, h8⟩, h9⟩ := h
-  refine ⟨h1, ?_, by simpa using h3, ?_, h5, h6, h7, h8, h9⟩
+  refine ⟨h1, ?_, by simpa using h3, ?_, h5, ?_, h7, h8, h9⟩
   · cases hc : q.call with
     | none => simp [hc] at h2
     | some c => simp [hc] at h2; rw [h2]
@@ -110,6 +133,11 @@ theorem protectedGate_spec {s : State} {cr : CallRec} {q : ReqRec} {now : Nat}
       simp only [Bool.and_eq_true, eqB_iff] at h4
       exact ⟨sess, hs, h4.1, h4.2⟩
     · simp at h4
+  · split at h6
+    · rename_i e he
+      simp only [Bool.and_eq_true, beq_iff_eq] at h6
+      exact ⟨e, he, h6.1, h6.2⟩
+    · simp at h6
 
 /-! ### Where `forward` and `ask` come from -/
 
@@ -232,8 +260,8 @@ theorem onDispatch_forward {s : State} {c : CallId} {now : Nat} {c' : CallId}
       · rename_i hg
         simp only [List.mem_singleton, Output.forward.injEq] at h
         obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩ := h
-        refine ⟨rfl, rfl, by simp [hcr, hst, hg], by simp [hcr, hst, hg, removeCall], cr, hcr,
-          .inl ⟨rfl, ⟨name, hst, hg⟩, by simp [hcr, hst, hg, removeCall]⟩⟩
+        refine ⟨rfl, rfl, by simp [hg], by simp [hg, removeCall], cr, hcr,
+          .inl ⟨rfl, ⟨name, hst, hg⟩, by simp [hg, removeCall]⟩⟩
       · simp at h
     · rename_i rid hst
       split at h
@@ -243,9 +271,9 @@ theorem onDispatch_forward {s : State} {c : CallId} {now : Nat} {c' : CallId}
         · rename_i hg
           simp only [List.mem_singleton, Output.forward.injEq] at h
           obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩ := h
-          refine ⟨rfl, rfl, by simp [hcr, hst, hq, hg], by simp [hcr, hst, hq, hg, removeCall], cr,
+          refine ⟨rfl, rfl, by simp [hg], by simp [hg, removeCall], cr,
             hcr, .inr ⟨rid, q, rfl, hst, hq, hg, rfl, rfl, rfl,
-              by simp [hcr, hst, hq, hg, removeCall]⟩⟩
+              by simp [hg, removeCall]⟩⟩
         · simp only [List.mem_append] at h
           rcases h with h | h
           · split at h <;> simp at h
