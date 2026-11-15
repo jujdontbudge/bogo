@@ -371,6 +371,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bogo-bypass"
+version = "0.1.0"
+dependencies = [
+ "rand 0.8.8",
+ "reqwest 0.13.5",
+ "serde_json",
+ "socket2",
+ "tokio",
+]
+
+[[package]]
 name = "bogo-config"
 version = "0.1.0"
 dependencies = [
@@ -2372,6 +2383,7 @@ checksum = "16a1cfa75cc186dd73d5818e510e042e40927bccc9c236b061cea97e1eb08029"
 dependencies = [
  "base64 0.23.1",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http",

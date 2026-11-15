@@ -109,6 +109,7 @@ const TEMPLATE: &str = r#"version = 1
 [server]
 port = 8790
 max_body = "1MiB"
+# allowed_hosts = ["172.30.0.2"]   # the reference sandbox's gate address (sandbox/README.md)
 [defaults]
 policy = "approve"
 hide_denied = true
@@ -984,6 +985,7 @@ pub async fn serve(root: &Path) -> Result<()> {
     let mut changes = manager.subscribe();
     let port = config.server.port;
     let max_body = config.server.max_body as usize;
+    let allowed_hosts = config.server.allowed_hosts.clone();
     let mut shell = Shell {
         core,
         log,
@@ -1180,7 +1182,11 @@ pub async fn serve(root: &Path) -> Result<()> {
     }
     let control = UnixListener::bind(&socket).map_err(error)?;
     std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600)).map_err(error)?;
-    let front = bogo_front::Front::new(Arc::new(handle.clone()), boot.boot_id.to_vec());
+    let front = bogo_front::Front::with_hosts(
+        Arc::new(handle.clone()),
+        boot.boot_id.to_vec(),
+        allowed_hosts,
+    );
     let h = handle.clone();
     let control_task = tokio::spawn(async move {
         loop {

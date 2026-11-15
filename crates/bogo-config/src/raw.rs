@@ -28,6 +28,7 @@ pub struct File {
 pub struct Server {
     pub port: i64,
     pub max_body: Option<String>,
+    pub allowed_hosts: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]

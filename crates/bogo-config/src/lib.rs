@@ -85,6 +85,10 @@ pub struct Server {
     pub port: u16,
     /// The parser's size limit for one request body, in bytes.
     pub max_body: u32,
+    /// IPv4 literals accepted in the `Host` header besides `localhost` and `127.0.0.1`,
+    /// such as the reference sandbox's gate address. Names are refused, so DNS
+    /// rebinding can never match one.
+    pub allowed_hosts: Vec<std::net::Ipv4Addr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -379,7 +383,26 @@ impl Validator<'_> {
                     ))
                 })? as u32,
         };
-        Ok(Server { port, max_body })
+        let allowed_hosts = s
+            .allowed_hosts
+            .unwrap_or_default()
+            .into_iter()
+            .map(|h| {
+                h.parse::<std::net::Ipv4Addr>()
+                    .ok()
+                    .filter(|ip| !ip.is_unspecified() && !ip.is_broadcast())
+                    .ok_or_else(|| {
+                        err(format!(
+                            "[server] allowed_hosts entry {h:?} is not an IPv4 address like \"172.30.0.2\"; host names are refused"
+                        ))
+                    })
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(Server {
+            port,
+            max_body,
+            allowed_hosts,
+        })
     }
 
     fn relay(&self, r: raw::Relay) -> Result<Relay, ConfigError> {

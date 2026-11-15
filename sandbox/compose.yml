@@ -1,0 +1,121 @@
+# BOGO reference sandbox (ARCHITECTURE §3.17). Start with sandbox/up.sh.
+#
+# The agent shares the network namespace of `netpol`, whose nftables rules
+# drop everything except TCP to the gate (BOGO) and to the model forwarder.
+# Nothing here mounts a home directory, ~/.bogo, SSH keys, Link's auth file,
+# BOGO's owner socket or the Docker socket.
+name: bogo-sandbox
+
+networks:
+  bogo-net:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+          gateway: 172.30.0.1
+  egress: {}
+
+x-locked: &locked
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  read_only: true
+
+services:
+  # One fixed TCP port to one fixed address: BOGO on the host's loopback.
+  # It parses nothing and offers no CONNECT; BOGO judges every byte.
+  gate:
+    <<: *locked
+    image: alpine/socat:1.8.0.3
+    user: "65534:65534"
+    command:
+      - "TCP-LISTEN:8790,bind=172.30.0.2,fork,reuseaddr"
+      - "TCP:host.docker.internal:${BOGO_PORT:-8790}"
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    networks:
+      bogo-net: { ipv4_address: 172.30.0.2 }
+      egress: {}
+    restart: unless-stopped
+
+  # ARCHITECTURE §11 question 1, recommended option: the model's API host is
+  # reachable through a second fixed forwarder to one named host and port.
+  # TLS runs end to end between the agent and that host.
+  model-gate:
+    <<: *locked
+    image: alpine/socat:1.8.0.3
+    user: "65534:65534"
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: "443"
+    command:
+      - "TCP-LISTEN:443,bind=172.30.0.3,fork,reuseaddr"
+      - "TCP:${MODEL_HOST:-api.anthropic.com}:443"
+    networks:
+      bogo-net: { ipv4_address: 172.30.0.3 }
+      egress: {}
+    restart: unless-stopped
+
+  # Holds the agent's network namespace. Loads policy.nft, then runs as
+  # nobody with no capabilities, so nothing in the namespace keeps NET_ADMIN.
+  netpol:
+    build: ./netpol
+    image: bogo-sandbox-netpol:1
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
+    read_only: true
+    tmpfs: ["/run/netpol:size=64k"]
+    volumes: ["./policy.nft:/etc/bogo/policy.nft:ro"]
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
+      net.ipv6.conf.default.disable_ipv6: "1"
+      net.ipv6.conf.lo.disable_ipv6: "1"
+    # No DNS reaches the agent; the model host is a static entry.
+    extra_hosts: ["${MODEL_HOST:-api.anthropic.com}:172.30.0.3"]
+    networks:
+      bogo-net: { ipv4_address: 172.30.0.10 }
+    healthcheck:
+      test: ["CMD", "test", "-f", "/run/netpol/ready"]
+      interval: 1s
+      retries: 30
+    restart: "no"
+
+  agent: &agent
+    <<: *locked
+    build: ./agent
+    image: bogo-sandbox-agent:1
+    user: "1000:1000"
+    network_mode: "service:netpol"
+    depends_on:
+      netpol: { condition: service_healthy }
+      gate: { condition: service_started }
+    tmpfs: ["/tmp:size=64m"]
+    volumes: ["work:/work"]
+    environment:
+      BOGO_URL: "http://172.30.0.2:8790/mcp"
+      BOGO_AGENT_TOKEN: "${BOGO_AGENT_TOKEN:?set it in sandbox/.env}"
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+      DISABLE_AUTOUPDATER: "1"
+      DISABLE_TELEMETRY: "1"
+    stdin_open: true
+    command: ["sleep", "infinity"]
+
+  # The bypass suite, in the same namespace as the agent, with a second
+  # agent's token for the session-reuse attempt.
+  bypass:
+    <<: *agent
+    profiles: ["bypass"]
+    # Room for the suite's concurrent port scans.
+    ulimits:
+      nofile: { soft: 8192, hard: 8192 }
+    environment:
+      BOGO_URL: "http://172.30.0.2:8790/mcp"
+      BOGO_AGENT_TOKEN: "${BOGO_AGENT_TOKEN:?set it in sandbox/.env}"
+      BOGO_BYPASS_SECOND_TOKEN: "${BOGO_BYPASS_SECOND_TOKEN:?set it in sandbox/.env}"
+      BYPASS_TARGETS: "${BYPASS_TARGETS:-}"
+      BYPASS_HOST_ADDRS: "${BYPASS_HOST_ADDRS:-}"
+      BYPASS_RELAY_PORT: "${BYPASS_RELAY_PORT:-443}"
+      BYPASS_REPLAY_SIG: "${BYPASS_REPLAY_SIG:-}"
+      BYPASS_MODEL_GATE: "172.30.0.3:443"
+      BYPASS_MODEL_HOST: "${MODEL_HOST:-api.anthropic.com}"
+    command: ["bogo-bypass"]
+
+volumes:
+  work: {}

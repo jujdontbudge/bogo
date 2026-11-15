@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "bogo": { "command": "/usr/local/bin/bogo-shim" }
+  }
+}

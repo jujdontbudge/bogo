@@ -144,17 +144,27 @@ struct Inner {
     boot: Vec<u8>,
     sessions: Mutex<HashMap<String, Session>>,
     stop: CancellationToken,
+    hosts: Vec<std::net::Ipv4Addr>,
 }
 #[derive(Clone)]
 pub struct Front(Arc<Inner>);
 
 impl Front {
     pub fn new(backend: Arc<dyn Backend>, boot_id: Vec<u8>) -> Self {
+        Self::with_hosts(backend, boot_id, Vec::new())
+    }
+    /// Also accepts these IPv4 literals in `Host` (e.g. the sandbox gate's address).
+    pub fn with_hosts(
+        backend: Arc<dyn Backend>,
+        boot_id: Vec<u8>,
+        hosts: Vec<std::net::Ipv4Addr>,
+    ) -> Self {
         Self(Arc::new(Inner {
             backend,
             boot: boot_id,
             sessions: Mutex::new(HashMap::new()),
             stop: CancellationToken::new(),
+            hosts,
         }))
     }
     /// Mount only on a loopback listener. Host/Origin checks also protect the liveness route.
@@ -163,6 +173,9 @@ impl Front {
         manager.session_config.keep_alive = None;
         manager.session_config.sse_retry = None;
         let mut config = StreamableHttpServerConfig::default().enforce_origin_validation();
+        config
+            .allowed_hosts
+            .extend(self.0.hosts.iter().map(ToString::to_string));
         config.legacy_session_mode = true;
         config.sse_retry = None;
         config.cancellation_token = self.0.stop.clone();
@@ -323,7 +336,10 @@ async fn edge(State(front): State<Front>, mut req: Request, next: Next) -> Respo
     // This applies to all routes, including the stream that does not enter rmcp.
     let host = header(&req, "host").unwrap_or_default();
     let hostname = host.split(':').next().unwrap_or("");
-    if !matches!(hostname, "localhost" | "127.0.0.1")
+    let listed = hostname
+        .parse::<std::net::Ipv4Addr>()
+        .is_ok_and(|ip| front.0.hosts.contains(&ip));
+    if !(matches!(hostname, "localhost" | "127.0.0.1") || listed)
         || req.headers().contains_key("origin")
         || req.headers().contains_key("last-event-id")
     {
