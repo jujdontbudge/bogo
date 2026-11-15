@@ -42,12 +42,26 @@ pub fn filter(rules: &Rules, mut result: Value) -> (Value, Report) {
                     apply(rules, block, &mut report);
                     text(rules, block.get_mut("uri"), &mut report);
                     text(rules, block.get_mut("text"), &mut report);
+                    if block.get("type").and_then(Value::as_str) != Some("resource_link")
+                        || !["uri", "name"]
+                            .iter()
+                            .all(|key| block.get(*key).is_some_and(Value::is_string))
+                    {
+                        withhold(block, &mut report);
+                    }
                 }
                 Some("resource") => {
                     if let Some(resource) = block.get_mut("resource") {
                         apply(rules, resource, &mut report);
                         text(rules, resource.get_mut("uri"), &mut report);
                         text(rules, resource.get_mut("text"), &mut report);
+                        if !resource.get("uri").is_some_and(Value::is_string)
+                            || !["text", "blob"]
+                                .iter()
+                                .any(|key| resource.get(*key).is_some_and(Value::is_string))
+                        {
+                            withhold(block, &mut report);
+                        }
                     }
                 }
                 _ => {}
@@ -55,6 +69,10 @@ pub fn filter(rules: &Rules, mut result: Value) -> (Value, Report) {
         }
     }
     (result, report)
+}
+fn withhold(block: &mut Value, report: &mut Report) {
+    *block = serde_json::json!({"type": "text", "text": WITHHELD});
+    report.withheld += 1;
 }
 fn text(rules: &Rules, value: Option<&mut Value>, report: &mut Report) {
     if let Some(value) = value

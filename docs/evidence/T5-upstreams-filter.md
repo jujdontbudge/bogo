@@ -99,4 +99,20 @@ unsupported pattern regexes or no available name among 4096 justification candid
 make a tool unexposable. Secret scrubbing detects exact configured values and
 base64, not arbitrary transformations. See the crate README for daemon wiring.
 
-Sol review: pending.
+Sol review ledger:
+
+- Round 1, GPT-6.1 Sol, medium effort: CHANGES. S1 (should) found that stripping
+  resource URI fields made the filtered result fail MCP deserialization.
+- Applied Sol's single regression test and reproduced its failure on the reviewed
+  implementation: `missing field uri`. The same targeted test now passes.
+- Fixed S1 with 18 product lines: a resource link or embedded resource whose
+  required fields were stripped becomes a valid withheld text block. Nothing from
+  the invalid resource is exposed. Kept Sol's 28-line regression test.
+- After the fix, `cargo clippy --workspace --all-targets -- -D warnings`, the full
+  `cargo test --workspace` suite (now four tests), and the real verification client
+  all passed. No findings declined. Usage was not exposed. Nothing pushed.
+- Round 2: pending; restricted to S1 and the changed behavior.
+
+Review diff (Cargo manifests/lock and the two crates): 3918 additions / 82 deletions
+before S1, 3964 additions / 82 deletions after S1. Most lines are Cargo.lock.
+
