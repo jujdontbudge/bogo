@@ -1,0 +1,18 @@
+[package]
+name = "bogo-bypass"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "Bypass suite run inside BOGO's reference sandbox (ARCHITECTURE §3.17)"
+
+# Depends on no BOGO crate: it sees BOGO only as an agent would, from inside the sandbox.
+[dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "blocking"] }
+serde_json.workspace = true
+socket2 = "0.6"
+rand = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time"] }
+
+[lints]
+workspace = true
