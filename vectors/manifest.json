@@ -1,0 +1,11 @@
+{
+  "generator": "lean/BogoVectors (lake exe BogoVectors)",
+  "lean_toolchain": "leanprover/lean4:v4.35.0",
+  "bogocore_commit": "55a2f8d859025f1e926b484a702ad21c30e5b30e",
+  "bogocore_dirty": false,
+  "request_encoding_version": 1,
+  "request_magic_hex": "424f474f52455100",
+  "approval_domain_hex": "424f474f2d415050524f56414c007631",
+  "files": ["json.json","requests.json","decode_reject.json"],
+  "counts": {"json_accept":28,"json_reject":37,"requests":22,"decode_reject":22}
+}

@@ -14,3 +14,8 @@ name = "BogoProofs"
 [[lean_exe]]
 name = "BogoVectors"
 root = "BogoVectors.Main"
+
+# The vector generator's own JSON text parser (not part of BogoCore).
+[[lean_lib]]
+name = "BogoVectorsLib"
+roots = ["BogoVectors.JsonText"]

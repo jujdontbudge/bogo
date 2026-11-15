@@ -1,0 +1,624 @@
+{
+  "about": "JSON argument texts. accept: parse source to value; writing value must give written exactly; value_hex is the value grammar of the request encoding. reject: every parser must refuse source_hex with this error kind.",
+  "accept": [
+    {
+      "name": "int-4700",
+      "about": "an integer amount",
+      "source": "{\"amount\":4700}",
+      "source_hex": "7b22616d6f756e74223a343730307d",
+      "value": ["obj",[["amount",["num","4700"]]]],
+      "written": "{\"amount\":4700}",
+      "written_is_source": true,
+      "value_hex": "060000000100000006616d6f756e74030000000434373030"
+    },
+    {
+      "name": "decimal-4700.0",
+      "about": "4700.0 is a different value from 4700",
+      "source": "{\"amount\":4700.0}",
+      "source_hex": "7b22616d6f756e74223a343730302e307d",
+      "value": ["obj",[["amount",["num","4700.0"]]]],
+      "written": "{\"amount\":4700.0}",
+      "written_is_source": true,
+      "value_hex": "060000000100000006616d6f756e740300000006343730302e30"
+    },
+    {
+      "name": "exp-4.7e3",
+      "about": "lowercase exponent kept as written",
+      "source": "{\"amount\":4.7e3}",
+      "source_hex": "7b22616d6f756e74223a342e3765337d",
+      "value": ["obj",[["amount",["num","4.7e3"]]]],
+      "written": "{\"amount\":4.7e3}",
+      "written_is_source": true,
+      "value_hex": "060000000100000006616d6f756e740300000005342e376533"
+    },
+    {
+      "name": "exp-4.7E3",
+      "about": "uppercase exponent kept as written, never 4.7e+3 or 4700",
+      "source": "{\"amount\":4.7E3}",
+      "source_hex": "7b22616d6f756e74223a342e3745337d",
+      "value": ["obj",[["amount",["num","4.7E3"]]]],
+      "written": "{\"amount\":4.7E3}",
+      "written_is_source": true,
+      "value_hex": "060000000100000006616d6f756e740300000005342e374533"
+    },
+    {
+      "name": "exp-4.7e+3",
+      "about": "explicit plus sign kept",
+      "source": "{\"amount\":4.7e+3}",
+      "source_hex": "7b22616d6f756e74223a342e37652b337d",
+      "value": ["obj",[["amount",["num","4.7e+3"]]]],
+      "written": "{\"amount\":4.7e+3}",
+      "written_is_source": true,
+      "value_hex": "060000000100000006616d6f756e740300000006342e37652b33"
+    },
+    {
+      "name": "exp-47e-1",
+      "about": "negative exponent",
+      "source": "{\"amount\":47E-1}",
+      "source_hex": "7b22616d6f756e74223a3437452d317d",
+      "value": ["obj",[["amount",["num","47E-1"]]]],
+      "written": "{\"amount\":47E-1}",
+      "written_is_source": true,
+      "value_hex": "060000000100000006616d6f756e7403000000053437452d31"
+    },
+    {
+      "name": "neg-zero",
+      "about": "-0 is its own text, not 0",
+      "source": "{\"amount\":-0}",
+      "source_hex": "7b22616d6f756e74223a2d307d",
+      "value": ["obj",[["amount",["num","-0"]]]],
+      "written": "{\"amount\":-0}",
+      "written_is_source": true,
+      "value_hex": "060000000100000006616d6f756e7403000000022d30"
+    },
+    {
+      "name": "neg-zero-decimal",
+      "about": "-0.0",
+      "source": "{\"amount\":-0.0}",
+      "source_hex": "7b22616d6f756e74223a2d302e307d",
+      "value": ["obj",[["amount",["num","-0.0"]]]],
+      "written": "{\"amount\":-0.0}",
+      "written_is_source": true,
+      "value_hex": "060000000100000006616d6f756e7403000000042d302e30"
+    },
+    {
+      "name": "zero",
+      "about": "plain zero",
+      "source": "0",
+      "source_hex": "30",
+      "value": ["num","0"],
+      "written": "0",
+      "written_is_source": true,
+      "value_hex": "030000000130"
+    },
+    {
+      "name": "long-integer",
+      "about": "a 400-digit integer, far beyond any float",
+      "source": "{\"n\":1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890}",
+      "source_hex": "7b226e223a313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839307d",
+      "value": [
+        "obj",
+        [
+          [
+            "n",
+            [
+              "num",
+              "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+            ]
+          ]
+        ]
+      ],
+      "written": "{\"n\":1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890}",
+      "written_is_source": true,
+      "value_hex": "0600000001000000016e030000019031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930"
+    },
+    {
+      "name": "long-decimal",
+      "about": "a long fraction with a huge exponent",
+      "source": "{\"n\":-0.000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001e-99999}",
+      "source_hex": "7b226e223a2d302e303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031652d39393939397d",
+      "value": [
+        "obj",
+        [
+          [
+            "n",
+            [
+              "num",
+              "-0.000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001e-99999"
+            ]
+          ]
+        ]
+      ],
+      "written": "{\"n\":-0.000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001000000000100000000010000000001e-99999}",
+      "written_is_source": true,
+      "value_hex": "0600000001000000016e03000001362d302e303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031303030303030303030313030303030303030303130303030303030303031652d3939393939"
+    },
+    {
+      "name": "u64-overflow",
+      "about": "integers past 2^64 stay exact",
+      "source": "[18446744073709551616,-9223372036854775809]",
+      "source_hex": "5b31383434363734343037333730393535313631362c2d393232333337323033363835343737353830395d",
+      "value": ["arr",[["num","18446744073709551616"],["num","-9223372036854775809"]]],
+      "written": "[18446744073709551616,-9223372036854775809]",
+      "written_is_source": true,
+      "value_hex": "05000000020300000014313834343637343430373337303935353136313603000000142d39323233333732303336383534373735383039"
+    },
+    {
+      "name": "float-edge",
+      "about": "values that floats would round",
+      "source": "[0.1,1e400,5e-324,9007199254740993]",
+      "source_hex": "5b302e312c31653430302c35652d3332342c393030373139393235343734303939335d",
+      "value": ["arr",[["num","0.1"],["num","1e400"],["num","5e-324"],["num","9007199254740993"]]],
+      "written": "[0.1,1e400,5e-324,9007199254740993]",
+      "written_is_source": true,
+      "value_hex": "05000000040300000003302e3103000000053165343030030000000635652d333234030000001039303037313939323534373430393933"
+    },
+    {
+      "name": "keys-unordered",
+      "about": "keys in any order are sorted by UTF-8 bytes",
+      "source": "{\"zeta\":1,\"alpha\":2,\"Mid\":3,\"_x\":4}",
+      "source_hex": "7b227a657461223a312c22616c706861223a322c224d6964223a332c225f78223a347d",
+      "value": ["obj",[["Mid",["num","3"]],["_x",["num","4"]],["alpha",["num","2"]],["zeta",["num","1"]]]],
+      "written": "{\"Mid\":3,\"_x\":4,\"alpha\":2,\"zeta\":1}",
+      "written_is_source": false,
+      "value_hex": "0600000004000000034d6964030000000133000000025f7803000000013400000005616c706861030000000132000000047a657461030000000131"
+    },
+    {
+      "name": "nested-unordered",
+      "about": "nested objects with keys in different orders and whitespace",
+      "source": "{ \"order\" : { \"z\": [ {\"b\":1, \"a\":2} ], \"a\" : {\"y\":null,\"x\":true} },\n  \"amount\":4700 }",
+      "source_hex": "7b20226f7264657222203a207b20227a223a205b207b2262223a312c202261223a327d205d2c20226122203a207b2279223a6e756c6c2c2278223a747275657d207d2c0a202022616d6f756e74223a34373030207d",
+      "value": [
+        "obj",
+        [
+          ["amount",["num","4700"]],
+          [
+            "order",
+            [
+              "obj",
+              [
+                ["a",["obj",[["x",["bool",true]],["y",["null"]]]]],
+                ["z",["arr",[["obj",[["a",["num","2"]],["b",["num","1"]]]]]]]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "written": "{\"amount\":4700,\"order\":{\"a\":{\"x\":true,\"y\":null},\"z\":[{\"a\":2,\"b\":1}]}}",
+      "written_is_source": false,
+      "value_hex": "060000000200000006616d6f756e74030000000434373030000000056f72646572060000000200000001610600000002000000017802000000017900000000017a0500000001060000000200000001610300000001320000000162030000000131"
+    },
+    {
+      "name": "keys-unicode-order",
+      "about": "byte order, not UTF-16 order: \"z\" < \"é\" < \"😀\" < \"ｚ\"",
+      "source": "{\"ｚ\":4,\"😀\":3,\"é\":2,\"z\":1}",
+      "source_hex": "7b22efbd9a223a342c22f09f9880223a332c22c3a9223a322c227a223a317d",
+      "value": ["obj",[["z",["num","1"]],["é",["num","2"]],["ｚ",["num","4"]],["😀",["num","3"]]]],
+      "written": "{\"z\":1,\"é\":2,\"ｚ\":4,\"😀\":3}",
+      "written_is_source": false,
+      "value_hex": "0600000004000000017a03000000013100000002c3a903000000013200000003efbd9a03000000013400000004f09f9880030000000133"
+    },
+    {
+      "name": "keys-prefix",
+      "about": "a key sorts before its extensions",
+      "source": "{\"ab\":2,\"a\":1,\"\":0}",
+      "source_hex": "7b226162223a322c2261223a312c22223a307d",
+      "value": ["obj",[["",["num","0"]],["a",["num","1"]],["ab",["num","2"]]]],
+      "written": "{\"\":0,\"a\":1,\"ab\":2}",
+      "written_is_source": false,
+      "value_hex": "0600000003000000000300000001300000000161030000000131000000026162030000000132"
+    },
+    {
+      "name": "unicode-raw",
+      "about": "raw UTF-8 text",
+      "source": "{\"note\":\"Café ☕ — 東京 → Zürich, שלום, é\"}",
+      "source_hex": "7b226e6f7465223a22436166c3a920e2989520e2809420e69db1e4baac20e28692205ac3bc726963682c20d7a9d79cd795d79d2c2065cc81227d",
+      "value": ["obj",[["note",["str","Café ☕ — 東京 → Zürich, שלום, é"]]]],
+      "written": "{\"note\":\"Café ☕ — 東京 → Zürich, שלום, é\"}",
+      "written_is_source": true,
+      "value_hex": "0600000001000000046e6f7465040000002f436166c3a920e2989520e2809420e69db1e4baac20e28692205ac3bc726963682c20d7a9d79cd795d79d2c2065cc81"
+    },
+    {
+      "name": "unicode-escaped",
+      "about": "\\u escapes and a surrogate pair decode to the same scalars as raw text",
+      "source": "{\"note\":\"Caf\\u00e9 \\u2615 \\ud83d\\ude00 \\u6771\\u4eac\"}",
+      "source_hex": "7b226e6f7465223a224361665c7530306539205c7532363135205c75643833645c7564653030205c75363737315c7534656163227d",
+      "value": ["obj",[["note",["str","Café ☕ 😀 東京"]]]],
+      "written": "{\"note\":\"Café ☕ 😀 東京\"}",
+      "written_is_source": false,
+      "value_hex": "0600000001000000046e6f74650400000015436166c3a920e2989520f09f988020e69db1e4baac"
+    },
+    {
+      "name": "escapes",
+      "about": "every short escape; the writer uses the canonical spelling",
+      "source": "[\"q\\\" b\\\\ s\\/ \\b\\f\\n\\r\\t\"]",
+      "source_hex": "5b22715c2220625c5c20735c2f205c625c665c6e5c725c74225d",
+      "value": ["arr",[["str","q\" b\\ s/ \b\f\n\r\t"]]],
+      "written": "[\"q\\\" b\\\\ s/ \\b\\f\\n\\r\\t\"]",
+      "written_is_source": false,
+      "value_hex": "0500000001040000000e712220625c20732f20080c0a0d09"
+    },
+    {
+      "name": "control-escaped",
+      "about": "escaped control characters, NUL, DEL and U+2028",
+      "source": "[\"\\u0000\\u0001\\u001f\\u007f\\u2028\\u2029\"]",
+      "source_hex": "5b225c75303030305c75303030315c75303031665c75303037665c75323032385c7532303239225d",
+      "value": ["arr",[["str","\u0000\u0001\u001f  "]]],
+      "written": "[\"\\u0000\\u0001\\u001f  \"]",
+      "written_is_source": false,
+      "value_hex": "0500000001040000000a00011f7fe280a8e280a9"
+    },
+    {
+      "name": "empty-object",
+      "about": "empty arguments",
+      "source": "{}",
+      "source_hex": "7b7d",
+      "value": ["obj",[]],
+      "written": "{}",
+      "written_is_source": true,
+      "value_hex": "0600000000"
+    },
+    {
+      "name": "empty-array",
+      "about": "an empty array",
+      "source": "[]",
+      "source_hex": "5b5d",
+      "value": ["arr",[]],
+      "written": "[]",
+      "written_is_source": true,
+      "value_hex": "0500000000"
+    },
+    {
+      "name": "empty-string",
+      "about": "empty string key and value",
+      "source": "{\"\":\"\"}",
+      "source_hex": "7b22223a22227d",
+      "value": ["obj",[["",["str",""]]]],
+      "written": "{\"\":\"\"}",
+      "written_is_source": true,
+      "value_hex": "0600000001000000000400000000"
+    },
+    {
+      "name": "literals",
+      "about": "true, false and null",
+      "source": "[true,false,null]",
+      "source_hex": "5b747275652c66616c73652c6e756c6c5d",
+      "value": ["arr",[["bool",true],["bool",false],["null"]]],
+      "written": "[true,false,null]",
+      "written_is_source": true,
+      "value_hex": "0500000003020100"
+    },
+    {
+      "name": "deep",
+      "about": "nesting with mixed containers",
+      "source": "{\"a\":[[[{\"b\":[{\"c\":[1,[2,[3]]]}]}]]]}",
+      "source_hex": "7b2261223a5b5b5b7b2262223a5b7b2263223a5b312c5b322c5b335d5d5d7d5d7d5d5d5d7d",
+      "value": [
+        "obj",
+        [
+          [
+            "a",
+            [
+              "arr",
+              [
+                [
+                  "arr",
+                  [
+                    [
+                      "arr",
+                      [
+                        [
+                          "obj",
+                          [
+                            [
+                              "b",
+                              [
+                                "arr",
+                                [
+                                  [
+                                    "obj",
+                                    [
+                                      [
+                                        "c",
+                                        [
+                                          "arr",
+                                          [["num","1"],["arr",[["num","2"],["arr",[["num","3"]]]]]]
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "written": "{\"a\":[[[{\"b\":[{\"c\":[1,[2,[3]]]}]}]]]}",
+      "written_is_source": true,
+      "value_hex": "0600000001000000016105000000010500000001050000000106000000010000000162050000000106000000010000000163050000000203000000013105000000020300000001320500000001030000000133"
+    },
+    {
+      "name": "whitespace",
+      "about": "all four whitespace bytes around everything",
+      "source": " \t\n\r{ \"a\" :\t[ 1 ,2 ]\r\n} \n",
+      "source_hex": "20090a0d7b20226122203a095b2031202c32205d0d0a7d200a",
+      "value": ["obj",[["a",["arr",[["num","1"],["num","2"]]]]]],
+      "written": "{\"a\":[1,2]}",
+      "written_is_source": false,
+      "value_hex": "060000000100000001610500000002030000000131030000000132"
+    },
+    {
+      "name": "stripe-like",
+      "about": "a payment-link style argument object",
+      "source": "{\"line_items\":[{\"price\":\"price_1PqXyZ\",\"quantity\":1}],\"amount\":4700,\"currency\":\"usd\",\"test\":true,\"metadata\":{\"trip\":\"LJU-SFO\",\"seat\":\"14C\"}}",
+      "source_hex": "7b226c696e655f6974656d73223a5b7b227072696365223a2270726963655f31507158795a222c227175616e74697479223a317d5d2c22616d6f756e74223a343730302c2263757272656e6379223a22757364222c2274657374223a747275652c226d65746164617461223a7b2274726970223a224c4a552d53464f222c2273656174223a22313443227d7d",
+      "value": [
+        "obj",
+        [
+          ["amount",["num","4700"]],
+          ["currency",["str","usd"]],
+          [
+            "line_items",
+            ["arr",[["obj",[["price",["str","price_1PqXyZ"]],["quantity",["num","1"]]]]]]
+          ],
+          ["metadata",["obj",[["seat",["str","14C"]],["trip",["str","LJU-SFO"]]]]],
+          ["test",["bool",true]]
+        ]
+      ],
+      "written": "{\"amount\":4700,\"currency\":\"usd\",\"line_items\":[{\"price\":\"price_1PqXyZ\",\"quantity\":1}],\"metadata\":{\"seat\":\"14C\",\"trip\":\"LJU-SFO\"},\"test\":true}",
+      "written_is_source": false,
+      "value_hex": "060000000500000006616d6f756e740300000004343730300000000863757272656e637904000000037573640000000a6c696e655f6974656d7305000000010600000002000000057072696365040000000c70726963655f31507158795a000000087175616e74697479030000000131000000086d65746164617461060000000200000004736561740400000003313443000000047472697004000000074c4a552d53464f000000047465737402"
+    }
+  ],
+  "reject": [
+    {
+      "name": "duplicate-key",
+      "about": "the same key twice",
+      "source": "{\"amount\":4700,\"amount\":1}",
+      "source_hex": "7b22616d6f756e74223a343730302c22616d6f756e74223a317d",
+      "error": "duplicate_key"
+    },
+    {
+      "name": "duplicate-key-nested",
+      "about": "duplicate deep inside",
+      "source": "{\"a\":[{\"k\":1,\"k\":1}]}",
+      "source_hex": "7b2261223a5b7b226b223a312c226b223a317d5d7d",
+      "error": "duplicate_key"
+    },
+    {
+      "name": "duplicate-key-escaped",
+      "about": "the same key spelled two ways",
+      "source": "{\"é\":1,\"\\u00e9\":2}",
+      "source_hex": "7b22c3a9223a312c225c7530306539223a327d",
+      "error": "duplicate_key"
+    },
+    {
+      "name": "lone-high-surrogate",
+      "about": "an escaped high surrogate alone",
+      "source": "[\"\\ud800\"]",
+      "source_hex": "5b225c7564383030225d",
+      "error": "lone_surrogate"
+    },
+    {
+      "name": "lone-low-surrogate",
+      "about": "an escaped low surrogate alone",
+      "source": "[\"\\udc00\"]",
+      "source_hex": "5b225c7564633030225d",
+      "error": "lone_surrogate"
+    },
+    {
+      "name": "high-then-text",
+      "about": "a high surrogate followed by text",
+      "source": "[\"\\ud83dx\"]",
+      "source_hex": "5b225c756438336478225d",
+      "error": "lone_surrogate"
+    },
+    {
+      "name": "high-then-high",
+      "about": "two high surrogates",
+      "source": "[\"\\ud83d\\ud83d\"]",
+      "source_hex": "5b225c75643833645c7564383364225d",
+      "error": "lone_surrogate"
+    },
+    {
+      "name": "lone-surrogate-key",
+      "about": "a lone surrogate in a key",
+      "source": "{\"\\udfff\":1}",
+      "source_hex": "7b225c7564666666223a317d",
+      "error": "lone_surrogate"
+    },
+    {
+      "name": "raw-surrogate-bytes",
+      "about": "a surrogate encoded directly as UTF-8 bytes",
+      "source": null,
+      "source_hex": "5b22eda080225d",
+      "error": "lone_surrogate"
+    },
+    {
+      "name": "invalid-utf8",
+      "about": "a stray continuation byte",
+      "source": null,
+      "source_hex": "5b2280225d",
+      "error": "invalid_utf8"
+    },
+    {
+      "name": "overlong-utf8",
+      "about": "an overlong encoding of '/'",
+      "source": null,
+      "source_hex": "5b22c0af225d",
+      "error": "invalid_utf8"
+    },
+    {
+      "name": "raw-control",
+      "about": "a raw newline inside a string",
+      "source": "[\"\n\"]",
+      "source_hex": "5b220a225d",
+      "error": "control_character"
+    },
+    {
+      "name": "raw-nul",
+      "about": "a raw NUL inside a string",
+      "source": "[\"\u0000\"]",
+      "source_hex": "5b2200225d",
+      "error": "control_character"
+    },
+    {
+      "name": "leading-zero",
+      "about": "01",
+      "source": "[01]",
+      "source_hex": "5b30315d",
+      "error": "bad_number"
+    },
+    {
+      "name": "leading-plus",
+      "about": "+1",
+      "source": "[+1]",
+      "source_hex": "5b2b315d",
+      "error": "bad_number"
+    },
+    {"name":"bare-dot","about":".5","source":"[.5]","source_hex":"5b2e355d","error":"bad_number"},
+    {
+      "name": "trailing-dot",
+      "about": "1.",
+      "source": "[1.]",
+      "source_hex": "5b312e5d",
+      "error": "bad_number"
+    },
+    {
+      "name": "empty-exponent",
+      "about": "1e",
+      "source": "[1e]",
+      "source_hex": "5b31655d",
+      "error": "bad_number"
+    },
+    {
+      "name": "sign-only-exponent",
+      "about": "1e+",
+      "source": "[1e+]",
+      "source_hex": "5b31652b5d",
+      "error": "bad_number"
+    },
+    {"name":"minus-only","about":"-","source":"[-]","source_hex":"5b2d5d","error":"bad_number"},
+    {
+      "name": "nan",
+      "about": "NaN is not JSON",
+      "source": "[NaN]",
+      "source_hex": "5b4e614e5d",
+      "error": "syntax"
+    },
+    {
+      "name": "infinity",
+      "about": "Infinity is not JSON",
+      "source": "[Infinity]",
+      "source_hex": "5b496e66696e6974795d",
+      "error": "syntax"
+    },
+    {
+      "name": "hex-number",
+      "about": "0x10: a 0 then junk",
+      "source": "[0x10]",
+      "source_hex": "5b307831305d",
+      "error": "syntax"
+    },
+    {
+      "name": "bad-escape",
+      "about": "\\x is not an escape",
+      "source": "[\"\\x41\"]",
+      "source_hex": "5b225c783431225d",
+      "error": "bad_escape"
+    },
+    {
+      "name": "short-unicode-escape",
+      "about": "\\u with three digits",
+      "source": "[\"\\u004\"]",
+      "source_hex": "5b225c75303034225d",
+      "error": "bad_escape"
+    },
+    {
+      "name": "trailing-comma-object",
+      "about": "a trailing comma",
+      "source": "{\"a\":1,}",
+      "source_hex": "7b2261223a312c7d",
+      "error": "syntax"
+    },
+    {
+      "name": "trailing-comma-array",
+      "about": "a trailing comma",
+      "source": "[1,]",
+      "source_hex": "5b312c5d",
+      "error": "syntax"
+    },
+    {
+      "name": "single-quotes",
+      "about": "single quotes",
+      "source": "{'a':1}",
+      "source_hex": "7b2761273a317d",
+      "error": "syntax"
+    },
+    {
+      "name": "unquoted-key",
+      "about": "an unquoted key",
+      "source": "{a:1}",
+      "source_hex": "7b613a317d",
+      "error": "syntax"
+    },
+    {
+      "name": "trailing-value",
+      "about": "two values",
+      "source": "{} {}",
+      "source_hex": "7b7d207b7d",
+      "error": "trailing"
+    },
+    {
+      "name": "trailing-garbage",
+      "about": "garbage after the value",
+      "source": "[1]x",
+      "source_hex": "5b315d78",
+      "error": "trailing"
+    },
+    {"name":"empty","about":"no value at all","source":"","source_hex":"","error":"syntax"},
+    {
+      "name": "only-whitespace",
+      "about": "only whitespace",
+      "source": " \n",
+      "source_hex": "200a",
+      "error": "syntax"
+    },
+    {
+      "name": "unterminated-string",
+      "about": "a string that never ends",
+      "source": "[\"abc",
+      "source_hex": "5b22616263",
+      "error": "syntax"
+    },
+    {
+      "name": "unterminated-array",
+      "about": "an array that never ends",
+      "source": "[1,2",
+      "source_hex": "5b312c32",
+      "error": "syntax"
+    },
+    {
+      "name": "comment",
+      "about": "comments are not JSON",
+      "source": "[1 /* one */]",
+      "source_hex": "5b31202f2a206f6e65202a2f5d",
+      "error": "syntax"
+    },
+    {
+      "name": "bom",
+      "about": "a byte order mark before the value",
+      "source": "﻿{}",
+      "source_hex": "efbbbf7b7d",
+      "error": "syntax"
+    }
+  ]
+}
