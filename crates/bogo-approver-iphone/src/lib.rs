@@ -72,6 +72,9 @@ pub struct IphoneRoute {
     sealed: Mutex<HashMap<[u8; 16], Vec<u8>>>,
     /// Requests APNs already accepted a push for.
     pushed: Mutex<HashSet<([u8; 32], ReqId)>>,
+    /// Device tokens APNs called invalid; not woken again until the phone
+    /// sends a new token.
+    dead_tokens: Mutex<HashSet<Vec<u8>>>,
     /// Message IDs whose effect is durable and that were acknowledged.
     acked: Mutex<HashSet<String>>,
     /// Random per process: notices get fresh IDs in each run, so a resend
@@ -111,6 +114,7 @@ impl IphoneRoute {
             by_mailbox: Mutex::new(HashMap::new()),
             sealed: Mutex::new(HashMap::new()),
             pushed: Mutex::new(HashSet::new()),
+            dead_tokens: Mutex::new(HashSet::new()),
             acked: Mutex::new(HashSet::new()),
             instance: rand::random(),
         }))
@@ -171,7 +175,7 @@ impl IphoneRoute {
         let (Some(apns), Some(push)) = (&self.apns, &ch.route.push) else {
             return;
         };
-        if hold(&self.pushed).contains(&(*approver, *req)) {
+        if hold(&self.pushed).contains(&(*approver, *req)) || hold(&self.dead_tokens).contains(&push.token.0) {
             return;
         }
         let env = if push.env == "development" {
@@ -188,7 +192,19 @@ impl IphoneRoute {
             Ok(r) if r.status == 200 => {
                 hold(&self.pushed).insert((*approver, *req));
             }
-            Ok(r) => tracing::warn!("APNs refused the wake-up: {} {:?}", r.status, r.reason),
+            Ok(r) => {
+                let dead = r.status == 410
+                    || (r.status == 400 && matches!(r.reason.as_deref(), Some("BadDeviceToken" | "DeviceTokenNotForTopic")));
+                if dead {
+                    hold(&self.dead_tokens).insert(push.token.0.clone());
+                }
+                tracing::warn!(
+                    "APNs refused the wake-up: {} {:?}{}",
+                    r.status,
+                    r.reason,
+                    if dead { "; not waking this token again until the phone sends a new one" } else { "" }
+                );
+            }
             Err(e) => tracing::warn!("APNs: {e}"),
         }
     }
