@@ -1,0 +1,18 @@
+[package]
+name = "bogo-approver-soft"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+[features]
+default = []
+test-approvers = []
+[dependencies]
+bogo-approver = { path = "../bogo-approver" }
+async-trait = "0.1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+serde_json.workspace = true
+hex = "0.4"
+[lints]
+workspace = true

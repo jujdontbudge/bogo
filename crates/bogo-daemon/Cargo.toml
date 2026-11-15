@@ -1,0 +1,41 @@
+[package]
+name = "bogo-daemon"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.89"
+publish.workspace = true
+[features]
+default = []
+test-approvers = ["dep:bogo-approver-soft", "bogo-verify/test-approvers"]
+test-registration = ["bogo-approver-iphone/test-registration", "bogo-config/test-registration"]
+[dependencies]
+bogo-core = { path = "../bogo-core" }
+bogo-json.workspace = true
+bogo-config.workspace = true
+bogo-front = { path = "../bogo-front" }
+bogo-upstream = { path = "../bogo-upstream" }
+bogo-filter = { path = "../bogo-filter" }
+bogo-log = { path = "../bogo-log" }
+bogo-state = { path = "../bogo-state" }
+bogo-verify = { path = "../bogo-verify" }
+bogo-approver = { path = "../bogo-approver" }
+bogo-approver-iphone = { path = "../bogo-approver-iphone" }
+bogo-approver-soft = { path = "../bogo-approver-soft", optional = true, features = ["test-approvers"] }
+bogo-attest = { path = "../bogo-attest" }
+async-trait = "0.1"
+futures = "0.3"
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+rmcp = { workspace = true, features = ["server"] }
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.8"
+base64 = "0.22"
+url = "2"
+tower-http = { version = "0.6", features = ["limit"] }
+nix = { version = "0.30", features = ["time", "user"] }
+[lints]
+workspace = true
