@@ -173,6 +173,9 @@ impl Front {
         manager.session_config.keep_alive = None;
         manager.session_config.sse_retry = None;
         let mut config = StreamableHttpServerConfig::default().enforce_origin_validation();
+        config
+            .allowed_hosts
+            .extend(self.0.hosts.iter().map(ToString::to_string));
         config.legacy_session_mode = true;
         config.sse_retry = None;
         config.cancellation_token = self.0.stop.clone();
