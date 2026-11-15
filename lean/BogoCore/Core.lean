@@ -222,10 +222,6 @@ def findCatalog (s : State) (name : String) : Option CatalogEntry :=
 def agentActive (s : State) (a : AgentId) : Bool :=
   s.agents.any (fun x => eqB x.id a && !x.revoked && !x.paused)
 
-/-- The session is open and belongs to that agent. -/
-def sessionLive (s : State) (sid : SessionId) (a : AgentId) : Bool :=
-  s.sessions.any (fun x => eqB x.id sid && eqB x.agent a)
-
 /-- The name the owner gave an agent, for per-agent overrides. -/
 def agentName (s : State) (a : AgentId) : String :=
   match findAgent s a with
@@ -310,6 +306,11 @@ def findRetry (s : State) (sid : SessionId) (agent : AgentId) (name : String)
     x.mode == .pendingRetry && eqB x.req.session sid && eqB x.req.agentId agent &&
     x.name == name && x.req.args == args && x.req.justification == j)
 
+/-- The live request a pending-and-retry call is a retry of, if any. -/
+def retryOf (s : State) (pol : ToolPolicy) (sid : SessionId) (agent : AgentId) (name : String)
+    (args : Option JVal) (j : Option String) : Option ReqRec :=
+  if pol.mode == .pendingRetry then findRetry s sid agent name args j else none
+
 def eligibleApprovers (s : State) (names : List String) : List ApproverId :=
   (s.approvers.filter (fun a => names.isEmpty || names.contains a.name)).map (·.id)
 
@@ -325,9 +326,7 @@ def admitProtected (s : State) (c : CallId) (sess : SessionRec) (ag : AgentRec)
   | some (stripped, j) =>
     if pol.justificationRequired && j.isNone then (s, [.reject c .justificationRequired])
     else
-      let retry := if pol.mode == .pendingRetry then
-        findRetry s sess.id ag.id e.name stripped j else none
-      match retry with
+      match retryOf s pol sess.id ag.id e.name stripped j with
       | some q =>
         match q.status with
         | .pending => (s, [.pendingApproval c])
@@ -398,7 +397,8 @@ def onCall (s : State) (c : CallId) (sid : SessionId) (name : String) (args : Op
 
 /-! ### Decisions from approvers -/
 
-/-- Replace one request record. -/
+/-- Update the request records with this ID. Callers change only `status`, `call`, `counted`
+and `denied`; the admission context stays as it was. -/
 def setReq (s : State) (r : ReqId) (f : ReqRec → ReqRec) : State :=
   { s with reqs := s.reqs.map (fun x => if isReq r x then f x else x) }
 
@@ -411,8 +411,8 @@ def onApproval (s : State) (a : ApproverId) (r : ReqId) (alg : UInt16) (proof : 
     | .settled => (s, [.ignored r a .settled])
     | .pending =>
       if !notExpired q.req now then
-        let (s', outs) := endWhere s (isReq r) .expired .endedWithoutDecision
-        (s', .ignored r a .expired :: outs)
+        let e := endWhere s (isReq r) .expired .endedWithoutDecision
+        (e.1, .ignored r a .expired :: e.2)
       else
         match findApprover s a with
         | none => (s, [.ignored r a .notEligible])
@@ -425,13 +425,12 @@ def onApproval (s : State) (a : ApproverId) (r : ReqId) (alg : UInt16) (proof : 
             let q' := { q with
               counted := q.counted ++ [{ id := a, alg := ap.alg, pk := ap.pk, proof }] }
             if requirementMet s q' then
-              let q'' := { q' with status := .settled }
-              (setReq s r (fun _ => q''),
+              (setReq s r (fun x => { x with counted := q'.counted, status := .settled }),
                [.counted r a, .settled r q.eligible] ++
                  (match q.call with
                   | some c => [.authorized c (some r)]
                   | none => []))
-            else (setReq s r (fun _ => q'), [.counted r a])
+            else (setReq s r (fun x => { x with counted := q'.counted }), [.counted r a])
 
 def onDenial (s : State) (a : ApproverId) (r : ReqId) (note : Option String) :
     State × List Output :=
@@ -447,7 +446,7 @@ def onDenial (s : State) (a : ApproverId) (r : ReqId) (note : Option String) :
         | .anyDenial => endWhere s (isReq r) .denied (.denied note)
         | .whenUnreachable =>
           let q' := { q with denied := a :: q.denied }
-          let s' := setReq s r (fun _ => q')
+          let s' := setReq s r (fun x => { x with denied := q'.denied })
           if reachable s' q' < q.requirement.need then
             endWhere s' (isReq r) .denied (.denied note)
           else (s', [])
@@ -460,8 +459,8 @@ def setAgent (s : State) (a : AgentId) (f : AgentRec → AgentRec) : State :=
 /-- Pause an agent: deny every live request it has. -/
 def pause (s : State) (agent : AgentId) : State × List Output :=
   let s1 := setAgent s agent (fun x => { x with paused := true })
-  let (s2, outs) := endWhere s1 (fun x => eqB x.req.agentId agent) .agentPaused .pausedAgent
-  (s2, outs ++ [.agentPaused agent])
+  let e := endWhere s1 (fun x => eqB x.req.agentId agent) .agentPaused .pausedAgent
+  (e.1, e.2 ++ [.agentPaused agent])
 
 def onPauseAgent (s : State) (a : ApproverId) (agent : AgentId) (epoch : Nat) :
     State × List Output :=
@@ -517,23 +516,28 @@ def onSessionClosed (s : State) (sid : SessionId) : State × List Output :=
   let s1 := { s with
     sessions := s.sessions.filter (fun x => !eqB x.id sid)
     calls := s.calls.filter (fun c => !eqB c.session sid) }
-  let (s2, outs) := endWhere s1 (fun x => eqB x.req.session sid) .sessionClosed
+  let e := endWhere s1 (fun x => eqB x.req.session sid) .sessionClosed
     .endedWithoutDecision
-  (s2, dropped.filterMap (fun c => match c.status with
+  (e.1, dropped.filterMap (fun c => match c.status with
       | .allowed .. => some (.reject c.id .endedWithoutDecision)
-      | .bound _ => none) ++ outs)
+      | .bound _ => none) ++ e.2)
 
 def removeCall (s : State) (c : CallId) : State :=
   { s with calls := s.calls.filter (fun x => !eqB x.id c) }
 
-/-- A call ended: drop it, and end the request it is bound to. -/
-def onCallEnded (s : State) (c : CallId) : State × List Output :=
+/-- Whether a request is bound to this call. -/
+def boundTo (c : CallId) (q : ReqRec) : Bool := q.call.any (eqB c)
+
+/-- A reject for an allowed call that is being dropped. -/
+def allowedReject (s : State) (c : CallId) (why : Rejection) : List Output :=
   match findCall s c with
-  | none => (s, [])
-  | some cr =>
-    match cr.status with
-    | .allowed .. => (removeCall s c, [.reject c .endedWithoutDecision])
-    | .bound r => endWhere (removeCall s c) (isReq r) .callEnded .endedWithoutDecision
+  | some { status := .allowed .., .. } => [.reject c why]
+  | _ => []
+
+/-- A call ended: drop it, and end the request bound to it. -/
+def onCallEnded (s : State) (c : CallId) : State × List Output :=
+  let e := endWhere (removeCall s c) (boundTo c) .callEnded .endedWithoutDecision
+  (e.1, allowedReject s c .endedWithoutDecision ++ e.2)
 
 /-! ### The final gate -/
 
@@ -554,8 +558,9 @@ def protectedGate (s : State) (cr : CallRec) (q : ReqRec) (now : Nat) : Bool :=
   q.status == .settled &&
   q.call.any (eqB cr.id) &&
   eqB q.req.session cr.session &&
-  sessionLive s q.req.session q.req.agentId &&
-  agentActive s q.req.agentId &&
+  (match findSession s cr.session with
+   | some sess => eqB sess.agent q.req.agentId && agentActive s sess.agent
+   | none => false) &&
   notExpired q.req now &&
   (findCatalog s q.name).isSome &&
   !((resolve s.cfg (agentName s q.req.agentId) q.name).kind == .deny) &&
@@ -579,18 +584,15 @@ def onDispatch (s : State) (c : CallId) (now : Nat) : State × List Output :=
           ({ s1 with reqs := s1.reqs.filter (fun x => !isReq r x) },
            [.forward c (some r) q.req.upstream q.req.tool q.req.args s.registrySeq])
         else
-          let (s2, outs) := endWhere s1 (isReq r) .dispatchFailed .gateClosed
-          -- `endWhere` already removed the call, so the reject comes from it when bound;
+          let e := endWhere s1 (isReq r) .dispatchFailed .gateClosed
+          -- `endWhere` already rejects the call when the request is bound to it;
           -- report the gate closing to this call either way.
-          (s2, (if q.call.any (eqB c) then [] else [.reject c .gateClosed]) ++ outs)
+          (e.1, (if q.call.any (eqB c) then [] else [.reject c .gateClosed]) ++ e.2)
 
+/-- The shell could not stage the send: the call's authority is consumed. -/
 def onNotSent (s : State) (c : CallId) : State × List Output :=
-  match findCall s c with
-  | none => (s, [])
-  | some cr =>
-    match cr.status with
-    | .allowed .. => (removeCall s c, [.reject c .upstreamUnavailable])
-    | .bound r => endWhere (removeCall s c) (isReq r) .notSent .upstreamUnavailable
+  let e := endWhere (removeCall s c) (boundTo c) .notSent .upstreamUnavailable
+  (e.1, allowedReject s c .upstreamUnavailable ++ e.2)
 
 def expiredAt (now : Nat) (x : ReqRec) : Bool := !notExpired x.req now
 
@@ -626,7 +628,7 @@ def nextDeadline (s : State) : Option Nat :=
 
 /-- One step: the new state, the decisions, and the next deadline. -/
 def step (s : State) (i : Input) : State × List Output × Option Nat :=
-  let (s', outs) := handle s i
-  (s', outs, nextDeadline s')
+  let h := handle s i
+  (h.1, h.2, nextDeadline h.1)
 
 end Bogo
