@@ -1,0 +1,50 @@
+[package]
+name = "bogo-standin"
+description = "Stand-in for BOGO while the phone is built: real registration, relay and push; requests from the Lean vectors; verified decisions in the log"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.89"
+publish.workspace = true
+
+[features]
+default = []
+# A test build: accepts the simulator-only registration path (no App Attest)
+# and builds the phone-side bridge used to drive the Simulator app.
+test-registration = ["bogo-approver-iphone/test-registration"]
+
+[[bin]]
+name = "bogo-standin"
+path = "src/main.rs"
+
+[[bin]]
+name = "bogo-simphone"
+path = "src/bin/simphone.rs"
+required-features = ["test-registration"]
+
+[dependencies]
+bogo-approver = { path = "../bogo-approver" }
+bogo-approver-iphone = { path = "../bogo-approver-iphone" }
+bogo-state = { path = "../bogo-state" }
+bogo-log = { path = "../bogo-log" }
+bogo-verify = { path = "../bogo-verify" }
+bogo-e2e = { path = "../bogo-e2e" }
+bogo-relay-proto = { path = "../bogo-relay-proto" }
+bogo-attest = { path = "../bogo-attest" }
+async-trait = "0.1"
+tokio = { version = "1", features = ["full"] }
+serde.workspace = true
+serde_json.workspace = true
+clap = { version = "4", features = ["derive"] }
+hex = "0.4"
+base64 = "0.22"
+rand = "0.8"
+sha2 = "0.10"
+p256 = { version = "0.13", features = ["ecdsa"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[lints]
+workspace = true

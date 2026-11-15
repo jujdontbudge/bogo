@@ -27,6 +27,21 @@ pub enum Direction {
 pub fn keypair() -> (SecretKey, PublicKey) {
     Kem::gen_keypair(&mut rand::rng())
 }
+pub fn public_of(secret: &SecretKey) -> PublicKey {
+    Kem::sk_to_pk(secret)
+}
+pub fn secret_bytes(secret: &SecretKey) -> [u8; 32] {
+    secret.to_bytes().into()
+}
+pub fn secret_from(bytes: &[u8]) -> Result<SecretKey, Error> {
+    SecretKey::from_bytes(bytes).map_err(|_| Error)
+}
+pub fn public_bytes(public: &PublicKey) -> [u8; 32] {
+    public.to_bytes().into()
+}
+pub fn public_from(bytes: &[u8]) -> Result<PublicKey, Error> {
+    PublicKey::from_bytes(bytes).map_err(|_| Error)
+}
 pub fn message_id() -> MessageId {
     rand::random()
 }

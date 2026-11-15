@@ -1,0 +1,18 @@
+[package]
+name = "bogo-approver"
+description = "ApproverRoute trait, the approver hub (fan-out, delivery retry, inbound decisions, sync answers), the registration driver"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+async-trait = "0.1"
+tokio = { version = "1", features = ["sync", "time", "rt", "macros"] }
+serde_json.workspace = true
+thiserror = "2"
+hex = "0.4"
+tracing = "0.1"
+
+[lints]
+workspace = true

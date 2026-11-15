@@ -99,6 +99,99 @@ At most 256 offers and 64 phases per offer are held in memory. Offers expire
 than that interval. Restart removes all offers. Abort requires removing the
 offer and starting a new one, with new ephemeral keys and IDs.
 
+## iPhone route messages
+
+`bogo-approver-iphone` implements ARCHITECTURE §3.11 on top of the envelope and
+mailbox above. Envelope payloads are UTF-8 JSON objects with a `type` field and
+camelCase fields; byte fields are lowercase hex. The JSON `type` must agree with
+the header's type byte, or the message is acknowledged and dropped.
+
+| Mac → phone | byte | fields |
+|---|---|---|
+| `request` | 1 | `reqId` (40), `bootSeq`, `bytes` (exact request bytes), `pauseEpoch`, `armDelayMs` |
+| `settled` | 2 | `reqId` |
+| `ended` | 3 | `reqId`, `why`: callEnded, sessionClosed, ownerCancel, expired, agentRevoked, approverRevoked, agentPaused, otherBoot, unknown |
+| `boot` | 4 | `bootSeq`, `bootId` (32) |
+| `outcome` | 5 | `reqId`, `outcome`: live, executed, notSent, denied, ended, unknown, noRecord |
+| `registered` | 6 | `txId`, `approverId` |
+| `revokedAck` | 7 | none |
+
+| Phone → Mac | byte | fields |
+|---|---|---|
+| `approval` | 1 | `reqId`, `alg` (1 = P-256), `sig`: raw `r ‖ s` over `"BOGO-APPROVAL\0v1" ‖ bytes` |
+| `denial` | 2 | `reqId`, optional `note` |
+| `pause` | 3 | `agentId`, `epoch` |
+| `seen` | 4 | `reqId` |
+| `pushToken` | 5 | `tokenSeq`, `token` (32), `env` (development or production), `encodingVersions` |
+| `sync` | 6 | `reqIds` |
+| `regResend` | 7 | `txId` |
+| `removed` | 8 | none |
+
+Message IDs: a request uses `request_message_id(reqId, approverId)`, so every
+resend of it is the same ID and the same sealed bytes. Notices use a fresh ID per
+outbox item. The phone's IDs are its own outbox IDs, reused on every resend.
+
+Every message is safe to apply late, early or twice. Both sides record an ID
+only after its effect is durable and acknowledge only after that; an ID seen
+again is acknowledged without being applied. On the Mac, each decision is
+checked in this order before anything is counted: approver revoked, unknown
+request (including one from an earlier boot), already settled or ended, approver
+not asked, duplicate, bad signature. Each check is logged, so a replay can add an
+`ignored` line but never a second effect. `removed` revokes the approver and ends
+the requests that can no longer reach their threshold, then `revokedAck`
+is sent (again for every repeat). `sync` answers one `outcome` per request ID
+from the log. `boot` tells the phone that requests from earlier boots are over.
+The Mac allowlists every approver it knows, revoked ones included, so a revoked
+phone's late messages arrive and are rejected rather than silently dropped.
+
+The push is only a wake-up; the mailbox is the queue. Each delivery attempt
+sends the request to the mailbox and an APNs wake at the same time. Once APNs
+accepts a wake for a request, resends of it carry no more wakes. A 410, or a 400
+BadDeviceToken or DeviceTokenNotForTopic, stops wake-ups to that token until a
+newer `pushToken` arrives.
+
+### Registration over the lobby
+
+Lobby bodies are `phase ‖ payload`; the message ID of each phase is
+`SHA-256("bogo-reg-msg" ‖ offerId ‖ phase)[0..16]`, so repeats are idempotent.
+
+| phase | from | payload |
+|---|---|---|
+| 0x01 HELLO | phone | `ePubP` (X25519, 32) |
+| 0x02 COMMIT | Mac | `Cm = SHA-256("bogo-reg-commit" ‖ ePubM ‖ ePubP ‖ Nm)` |
+| 0x03 PHONE_NONCE | phone | `Np` (16) |
+| 0x04 REVEAL | Mac | `Nm` (16) |
+| 0x05 MAC_CONFIRMED | Mac | sealed `{macE2e, macRelay, bogoId, macName, challenge}` |
+| 0x06 REG_SUBMIT | phone | sealed `{approvalKey, proof, phoneE2e, phoneRelay, attestation, pushToken, pushEnv, encodingVersions}` |
+| 0x07 REGISTERED | Mac | sealed `{txId, approverId}` |
+| 0x08 REFUSED | Mac | sealed `{why}` |
+| 0x09 MAC_ABORT / 0x0a PHONE_ABORT | either | empty |
+
+Both screens show `u64be(SHA-256("bogo-reg-code" ‖ ePubM ‖ ePubP ‖ Nm ‖ Np)[0..8])
+mod 10^6`. The phone checks `Cm` against the reveal; the commitment stops a
+man in the middle from choosing its key after seeing the other nonce. Then:
+
+- `th = SHA-256("bogo-reg-transcript/v1" ‖ offerId ‖ ePubM ‖ ePubP ‖ Cm ‖ Nm ‖ Np)`
+- `K = HKDF-SHA256(salt = th, ikm = X25519(eM, eP), info = "bogo-reg-key/v1")`
+- Phase `p` is sealed with ChaCha20-Poly1305 under `K`, nonce
+  `0^11 ‖ p`, AAD `"bogo-reg/v1" ‖ offerId ‖ p`; each phase is sealed once.
+- `txId = SHA-256(th)`, `approverId = SHA-256("bogo-approver-id/v1" ‖ txId)`.
+- `proof` is the approval key's signature over `"BOGO-REG\0v1" ‖ th ‖ challenge`.
+- App Attest's client data hash is `registration_client_data_hash(th,
+  challenge, approvalKey, phoneE2e, phoneRelay)`.
+
+The Mac sends MAC_CONFIRMED only after the owner confirms the code on the Mac,
+and a declined code sends MAC_ABORT. Before committing, it checks that the lobby
+peer's mailbox is `SHA-256(phoneRelay)`, the proof, encoding version 1, and the
+App Attest evidence. Evidence that is present is always verified. Missing
+evidence is accepted only by a build with the `test-registration` feature
+(recorded as `simulator-test`), and every other build refuses it. A duplicate
+approver ID, txId or approval key is refused. The Mac logs
+`approver_registered` durably, then answers REGISTERED in the lobby and also
+sends `registered` to the phone's mailbox. It re-sends `registered` on every boot
+and on `regResend`. An offer stays up for 3 seconds after the Mac's last phase
+so that the phone can read it.
+
 ## Approval verifier and attestation
 
 `bogo_verify::verify` accepts tag 1, SEC1 P-256 public keys and a raw 64-byte
