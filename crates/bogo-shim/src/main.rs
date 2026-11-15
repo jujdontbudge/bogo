@@ -20,6 +20,11 @@ struct Headers {
     mcp: Option<String>,
     version: Option<String>,
 }
+#[derive(Clone, Default)]
+struct Handshake {
+    initialize: Option<Vec<u8>>,
+    initialized: Option<Vec<u8>>,
+}
 struct Session {
     id: String,
     headers: Mutex<Headers>,
@@ -132,6 +137,51 @@ async fn response(
         .await
     }
 }
+// Only the original lifecycle messages may be replayed, into a fresh BOGO session.
+// No tool call or pending approval is retained across connections.
+async fn restore_handshake(
+    client: &Client,
+    url: &str,
+    token: &str,
+    session: &Session,
+    handshake: Handshake,
+) -> Result<(), String> {
+    let Some(initialize) = handshake.initialize else {
+        return Ok(());
+    };
+    let (out, mut received) = mpsc::channel(4);
+    let reply = request(client, reqwest::Method::POST, url, token, session)
+        .header("Content-Type", "application/json")
+        .body(initialize)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    // Capture the new MCP headers, but never emit a duplicate initialize response to stdio.
+    response(reply, session, true, &out).await?;
+    let reply = received
+        .try_recv()
+        .map_err(|_| "Missing replacement initialize response")?;
+    let reply = bogo_json::parse(&reply).map_err(|e| e.to_string())?;
+    if field(&reply, "result").is_none() || session.headers.lock().unwrap().version.is_none() {
+        return Err("Replacement MCP initialize failed".into());
+    }
+    if let Some(initialized) = handshake.initialized {
+        let reply = request(client, reqwest::Method::POST, url, token, session)
+            .header("Content-Type", "application/json")
+            .body(initialized)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !reply.status().is_success() {
+            return Err(format!(
+                "Replacement MCP initialized returned HTTP {}",
+                reply.status()
+            ));
+        }
+    }
+    Ok(())
+}
+
 async fn run() -> Result<(), String> {
     let url = env::var("BOGO_URL").map_err(|_| "BOGO_URL is required")?;
     let url = url.trim_end_matches('/').to_owned();
@@ -151,10 +201,17 @@ async fn run() -> Result<(), String> {
         }
         Ok::<_, std::io::Error>(())
     });
+    let handshake = Arc::new(Mutex::new(Handshake::default()));
+    // Calls arriving while a replacement connects must wait for its handshake, rather
+    // than observing the gap between its liveness stream and MCP session becoming ready.
+    let connecting = Arc::new(tokio::sync::Mutex::new(()));
     let liveness = {
+        let handshake = handshake.clone();
+        let connecting = connecting.clone();
         let (client, token, url, out) = (client.clone(), token.clone(), url.clone(), out.clone());
         tokio::spawn(async move {
             loop {
+                let mut connection = Some(connecting.lock().await);
                 let session = new_session();
                 match request(
                     &client,
@@ -167,7 +224,19 @@ async fn run() -> Result<(), String> {
                 .await
                 {
                     Ok(r) if r.status().is_success() => {
+                        let saved = handshake.lock().unwrap().clone();
+                        if let Err(e) =
+                            restore_handshake(&client, &url, &token, &session, saved).await
+                        {
+                            eprintln!("bogo-shim: reconnect handshake: {e}");
+                            session.ended.send_replace(true);
+                            live.send_replace(None);
+                            drop(connection.take());
+                            tokio::time::sleep(Duration::from_millis(500)).await;
+                            continue;
+                        }
                         live.send_replace(Some(session.clone()));
+                        drop(connection.take());
                         // Legacy server-to-client tool-list notifications use the MCP GET
                         // stream, independently of the BOGO liveness stream.
                         let notifications = {
@@ -206,6 +275,7 @@ async fn run() -> Result<(), String> {
                     Err(e) => eprintln!("bogo-shim: liveness: {e}"),
                 }
                 live.send_replace(None);
+                drop(connection.take());
                 tokio::time::sleep(Duration::from_millis(500)).await;
             }
         })
@@ -234,8 +304,19 @@ async fn run() -> Result<(), String> {
         }
         let value = bogo_json::parse(&line).map_err(|e| e.to_string())?;
         let id = field(&value, "id").cloned();
-        let initialize = field(&value, "method").and_then(text) == Some("initialize");
-        let session = state.borrow().clone();
+        let method = field(&value, "method").and_then(text);
+        let initialize = method == Some("initialize");
+        if initialize {
+            let mut saved = handshake.lock().unwrap();
+            saved.initialize = Some(line.clone());
+            saved.initialized = None;
+        } else if method == Some("notifications/initialized") {
+            handshake.lock().unwrap().initialized = Some(line.clone());
+        }
+        let session = {
+            let _connection = connecting.lock().await;
+            state.borrow().clone()
+        };
         let (client, token, url, out) = (client.clone(), token.clone(), url.clone(), out.clone());
         jobs.spawn(async move {
             let result = if let Some(session) = session {

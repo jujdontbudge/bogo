@@ -182,7 +182,7 @@ Commands completed successfully:
 ```sh
 cargo check -p bogo-front -p bogo-shim
 cargo clippy --workspace --all-targets
-cargo test -p bogo-front -p bogo-shim
+BOGO_REVIEW_STANDIN="$PWD/target/debug/examples/standin" cargo test -p bogo-front -p bogo-shim
 cargo fmt --all --check
 ```
 
@@ -206,4 +206,57 @@ and tool-list-change delivery; long idle sessions or suspended-Mac clock behavio
 Legacy MCP sessions are retained between requests until DELETE, revocation or shutdown;
 a disappeared legacy client between requests cannot be detected, as documented in §3.6.
 
-Sol review: pending at the time this evidence was recorded.
+Sol round 1 (`gpt-6.1-sol`, medium) returned CHANGES with one finding:
+S1 (should): a legacy stdio client could not call after daemon restart because
+replacement liveness did not restore its MCP handshake. Accepted and fixed.
+The shim now retains and replays only the original initialize/initialized bytes,
+keeps replacement sessions unavailable to calls until that handshake completes,
+and suppresses the duplicate initialize response. Tool calls are never replayed.
+
+Applied Sol's regression test, reproduced its failure against the committed shim,
+then ran the same test after the fix:
+
+```text
+   Compiling bogo-shim v0.1.0 (/Users/johansardar/.t3/worktrees/bogo/t3-307529f0-2e0c831ab81a251a/crates/bogo-shim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running tests/reconnect.rs (target/debug/deps/reconnect-90e3227dde3ccbc7)
+
+running 1 test
+bogo-shim: notification stream: body error: error decoding response body
+bogo-shim: BOGO returned HTTP 400 Bad Request
+
+thread 'legacy_stdio_client_can_call_after_daemon_reconnect' (7846967) panicked at crates/bogo-shim/tests/reconnect.rs:96:5:
+daemon is back and liveness reopened, but the legacy client cannot call: {"jsonrpc":"2.0","id":3,"error":{"code":-32000,"message":"BOGO is unreachable; the call was not retried."}}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test legacy_stdio_client_can_call_after_daemon_reconnect ... FAILED
+
+failures:
+
+failures:
+    legacy_stdio_client_can_call_after_daemon_reconnect
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+
+error: test failed, to rerun pass `-p bogo-shim --test reconnect`
+
+   Compiling bogo-shim v0.1.0 (/Users/johansardar/.t3/worktrees/bogo/t3-307529f0-2e0c831ab81a251a/crates/bogo-shim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running tests/reconnect.rs (target/debug/deps/reconnect-90e3227dde3ccbc7)
+
+running 1 test
+bogo-shim: notification stream: body error: error decoding response body
+test legacy_stdio_client_can_call_after_daemon_reconnect ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+
+```
+
+The fixture path can be set with `BOGO_REVIEW_STANDIN`; otherwise the test uses
+`target/debug/examples/standin`. Build the front example before running just the
+shim's test suite. The full changed-package suite, workspace clippy and formatting
+checks pass after the fix; the real SDK, concurrent call/cancel/crash checks, exact
+stdio body match and current-protocol reconnect were also exercised again.
+
+Sol round 2: fix review pending. No findings declined. No review token usage was
+returned. Not pushed.
+
