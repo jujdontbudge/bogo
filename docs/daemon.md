@@ -150,5 +150,7 @@ replayed. `stop` unloads KeepAlive, closes admission and sessions, and drains
 those lifecycle events through a durability barrier. Startup refuses corruption;
 only a torn final line is moved aside by the existing log recovery code.
 
-The sandbox is a separate ticket. A host agent with built-in shell access can
-bypass MCP; this daemon does not claim to sandbox that process.
+A host agent with built-in shell access can bypass MCP; this daemon does not
+claim to sandbox that process. Run agents inside the reference sandbox
+([sandbox/README.md](../sandbox/README.md)): set `[server] allowed_hosts =
+["172.30.0.2"]` so BOGO accepts the sandbox gate's address in the `Host` header.
