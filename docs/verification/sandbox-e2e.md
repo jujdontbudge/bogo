@@ -149,8 +149,10 @@ driven by a rule script that approved only a test-mode 4700-cent payment, once.
 
 ## 5. `bogo log verify`
 
+After all scenarios and bypass runs, and again after `bogo stop`:
+
 ```text
-chain intact; Report { entries: 216, approvers_registered: 1, approvers_revoked: 0,
+chain intact; Report { entries: 279, approvers_registered: 1, approvers_revoked: 0,
 approvals_counted: 2, approvals_ignored: 0, denials_applied: 3, denials_ignored: 0 }
 ```
 
@@ -170,6 +172,9 @@ approvals_counted: 2, approvals_ignored: 0, denials_applied: 3, denials_ignored:
   start, because there is no catalog yet.
 
 ## Device session, still to do
+
+The sandbox images were removed after this run to save disk: `colima start`,
+`bogo start`, `sandbox/build.sh`, `sandbox/up.sh` first.
 
 1. `NO_UPDATE_NOTIFIER=1 link-cli auth login --client-name BOGO --auth ~/.bogo/upstreams/stripe/auth.json --interval 5`,
    open the URL, Confirm, approve in the Link app.
