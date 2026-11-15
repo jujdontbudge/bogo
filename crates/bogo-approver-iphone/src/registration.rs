@@ -12,6 +12,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 const STEP_TIMEOUT: Duration = Duration::from_secs(600);
 const POLL: Duration = Duration::from_millis(300);
 const REFRESH: Duration = Duration::from_secs(30);
+/// How long a closing offer stays up so the phone can fetch the last phase.
+const LINGER: Duration = Duration::from_secs(3);
 
 /// True only in a test build (`test-registration`), which accepts the
 /// simulator-only path: a registration without App Attest evidence.
@@ -105,8 +107,11 @@ impl Lobby<'_> {
             .await;
     }
 
+    /// Tell the phone, give it a moment to fetch the abort, then close the offer.
     async fn abort(&self) {
-        let _ = self.send(PHASE_MAC_ABORT, &[]).await;
+        if self.send(PHASE_MAC_ABORT, &[]).await.is_ok() {
+            tokio::time::sleep(LINGER).await;
+        }
         self.close().await;
     }
 }
@@ -177,6 +182,8 @@ pub(crate) async fn run(
         Ok(p) => Ok(p),
         Err(e) => {
             if matches!(e, RegError::Refused(_)) {
+                // The sealed REFUSED is already in the lobby.
+                tokio::time::sleep(LINGER).await;
                 lobby.close().await;
             } else {
                 lobby.abort().await;
@@ -440,7 +447,7 @@ impl PendingRegistration for MacRegistration {
         // Give the phone a moment to read the lobby answer, then close the
         // offer. A phone that misses both gets `registered` again on every
         // boot, or by asking with `regResend`.
-        tokio::time::sleep(Duration::from_secs(3)).await;
+        tokio::time::sleep(LINGER).await;
         self.close().await;
         match (lobby, mailbox) {
             (Err(e), Err(_)) => Err(e),
@@ -450,7 +457,9 @@ impl PendingRegistration for MacRegistration {
 
     async fn refuse(self: Box<Self>, why: &str) {
         let refused = serde_json::to_vec(&RefusedPhase { why: why.into() }).unwrap_or_default();
-        let _ = self.lobby_send(PHASE_REFUSED, &refused).await;
+        if self.lobby_send(PHASE_REFUSED, &refused).await.is_ok() {
+            tokio::time::sleep(LINGER).await;
+        }
         self.close().await;
     }
 }

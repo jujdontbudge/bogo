@@ -347,6 +347,7 @@ impl ApproverRoute for IphoneRoute {
                 // Already applied and acknowledged once: the relay is showing
                 // it again (a resend after our ack). Acknowledge again only.
                 if hold(&self.acked).contains(&m.msg_id) {
+                    tracing::info!("message {} was already applied; acknowledged again, not applied", &m.msg_id[..12]);
                     self.ack(&m.msg_id).await;
                     continue;
                 }
