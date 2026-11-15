@@ -257,6 +257,16 @@ shim's test suite. The full changed-package suite, workspace clippy and formatti
 checks pass after the fix; the real SDK, concurrent call/cancel/crash checks, exact
 stdio body match and current-protocol reconnect were also exercised again.
 
-Sol round 2: fix review pending. No findings declined. No review token usage was
-returned. Not pushed.
+Sol round 2 (`gpt-6.1-sol`, medium): **APPROVE** on implementation head `439b32d`.
+S1 resolved; no new blocker/should findings. The reviewer independently built the
+linked-core stand-in and ran the retained restart regression: 1 passed, 0 failed.
+No findings declined. No review token usage was returned. Not pushed.
+
+Review ledger: one accepted should finding, fixed; one regression test retained;
+two rounds total. The reviewer made no product edits. The scoped implementation
+diff against its parent grew from 7 files / +1518 / -1 to 8 files / +1711 / -1
+(the fix and its regression). Against the default-branch merge-base, the same scoped
+diff grew from +5060 to +5253; that also includes pre-existing workspace manifest
+and lockfile changes already present before this ticket. Documentation-only closure
+after approval does not change reviewed behavior.
 
