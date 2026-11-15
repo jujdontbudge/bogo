@@ -1,0 +1,22 @@
+[Unit]
+Description=Renew BOGO relay TLS certificate with Cloudflare DNS-01
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/bogo-relay/cloudflare.env
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+EnvironmentFile=/etc/bogo-relay/acme.env
+EnvironmentFile=/etc/bogo-relay/cloudflare.env
+ExecStart=/opt/bogo-relay/bin/lego-renew.sh
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bogo-relay-acme /var/lib/bogo-relay-acme-staging /etc/bogo-relay/tls
+NoNewPrivileges=true
+MemoryMax=192M
+CPUQuota=50%
+
