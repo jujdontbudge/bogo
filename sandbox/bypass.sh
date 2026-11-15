@@ -27,9 +27,9 @@ sig = ""
 for line in open(sys.argv[1]):
     e = json.loads(line)
     if e.get("kind") == "approval":
-        for k in ("sig", "signature", "sig_b64", "approval_b64"):
-            if isinstance(e.get(k), str):
-                sig = e[k]
+        # LogEvent::Approval records the signature as `proof` (hex).
+        if isinstance(e.get("proof"), str):
+            sig = e["proof"]
 print(sig)
 ' "$log")
 	export BYPASS_REPLAY_SIG

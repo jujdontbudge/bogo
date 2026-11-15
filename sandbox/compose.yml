@@ -102,6 +102,9 @@ services:
   bypass:
     <<: *agent
     profiles: ["bypass"]
+    # Room for the suite's concurrent port scans.
+    ulimits:
+      nofile: { soft: 8192, hard: 8192 }
     environment:
       BOGO_URL: "http://172.30.0.2:8790/mcp"
       BOGO_AGENT_TOKEN: "${BOGO_AGENT_TOKEN:?set it in sandbox/.env}"

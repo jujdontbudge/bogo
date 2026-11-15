@@ -510,15 +510,19 @@ fn check_absent(r: &mut Report, m: &Mcp, token: &str, sid: &str, env: &Env, path
     ) {
         Ok(Sent::Answered(resp)) => {
             let (err, text) = outcome(&resp);
+            // Only the upstream's own "no such file" proves nothing was written; any
+            // other error (unknown tool, upstream down) says nothing about the file.
+            let missing = err && text.contains("ENOENT");
+            let how = match (err, missing) {
+                (true, true) => format!("not written: {text}"),
+                (true, false) => format!("inconclusive, the read itself failed: {text}"),
+                (false, _) => format!("the file exists: {text}"),
+            };
             r.stopped(
-                err,
+                missing,
                 "effect",
                 format!("read {path} back through BOGO"),
-                if err {
-                    format!("not written: {text}")
-                } else {
-                    format!("the file exists: {text}")
-                },
+                how,
             );
         }
         Ok(Sent::TimedOut) => r.add(
@@ -648,5 +652,118 @@ fn sessions(r: &mut Report, m: &Mcp, token: &str, env: &Env) {
             m.close(token, &sid);
         }
         Err(e) => r.add(Verdict::Fail, "session", "open a shim-style session", e),
+    }
+}
+
+#[cfg(test)]
+mod review_tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn review_s1_runner_replays_audit_proof() {
+        let scratch = std::env::temp_dir().join(format!("bogo-review-{}", hex(16)));
+        std::fs::create_dir_all(scratch.join("log")).unwrap();
+        let proof = "ab".repeat(64);
+        // LogEvent::Approval serializes its signature as `proof: Hex`.
+        let entry = json!({"v":1,"seq":1,"prev":"00".repeat(32),
+            "ts":"2026-11-15T00:00:00.000Z","kind":"approval",
+            "req":"01".repeat(16),"approver":"02".repeat(32),
+            "alg":1,"proof":proof,"counted":true});
+        std::fs::write(scratch.join("log/audit.jsonl"), format!("{entry}\n")).unwrap();
+        // Intercept only the Docker boundary; never contact a Docker daemon.
+        let docker = scratch.join("docker");
+        std::fs::write(
+            &docker,
+            "#!/bin/sh\nprintf '%s' \"${BYPASS_REPLAY_SIG-}\"\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&docker, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let output = std::process::Command::new("sh")
+            .arg(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../sandbox/bypass.sh"
+            ))
+            .env(
+                "PATH",
+                format!("{}:{}", scratch.display(), std::env::var("PATH").unwrap()),
+            )
+            .env("BOGO_HOME", &scratch)
+            .env_remove("BYPASS_REPLAY_SIG")
+            .output()
+            .unwrap();
+        std::fs::remove_dir_all(&scratch).unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            proof,
+            "the runner skipped replay despite a counted approval in the audit log"
+        );
+    }
+
+    #[test]
+    fn review_s2_missing_read_tool_cannot_prove_no_write() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut request = Vec::new();
+            let header_end = loop {
+                let mut byte = [0];
+                stream.read_exact(&mut byte).unwrap();
+                request.push(byte[0]);
+                if request.ends_with(b"\r\n\r\n") {
+                    break request.len();
+                }
+            };
+            let headers = String::from_utf8_lossy(&request);
+            let len: usize = headers
+                .lines()
+                .find_map(|line| {
+                    line.to_ascii_lowercase()
+                        .strip_prefix("content-length:")
+                        .map(|v| v.trim().parse().unwrap())
+                })
+                .unwrap();
+            request.resize(header_end + len, 0);
+            stream.read_exact(&mut request[header_end..]).unwrap();
+            let body: Value = serde_json::from_slice(&request[header_end..]).unwrap();
+            assert_eq!(body["method"], "tools/call");
+            assert_eq!(body["params"]["name"], "files__read_text_file");
+            // BOGO's actual UnknownTool result; this says nothing about existence.
+            let response = json!({"jsonrpc":"2.0","id":90,"result":{
+                "isError":true,"content":[{"type":"text","text":"Unknown tool."}]
+            }})
+            .to_string();
+            write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", response.len(), response).unwrap();
+        });
+        let mut report = Report { rows: Vec::new() };
+        let mcp = Mcp {
+            client: Client::builder().no_proxy().build().unwrap(),
+            url: format!("http://{addr}/mcp"),
+        };
+        let mut env = Env::read();
+        env.read_tool = "files__read_text_file".into();
+        check_absent(
+            &mut report,
+            &mcp,
+            "test-token",
+            "test-session",
+            &env,
+            "/work/written.txt",
+        );
+        server.join().unwrap();
+        assert!(
+            report.rows.iter().any(|row| row.0 == Verdict::Fail),
+            "a missing read tool was reported as proof that the file was not written"
+        );
     }
 }

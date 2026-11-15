@@ -13,6 +13,21 @@ pub enum Outcome {
     Stopped(String),
 }
 
+/// An error that shows the network refused the attempt. Anything else (out of file
+/// descriptors or buffers, say) means the attempt never happened, so it is reported
+/// as reached: a check that could not be made must not pass.
+fn refused(e: &std::io::Error) -> Outcome {
+    let network = matches!(
+        e.kind(),
+        std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+    ) || matches!(e.raw_os_error(), Some(1 | 13 | 97 | 99 | 101 | 113));
+    if network {
+        Outcome::Stopped(explain(e))
+    } else {
+        Outcome::Connected
+    }
+}
+
 /// Names an OS error and says what in the sandbox produced it.
 pub fn explain(e: &std::io::Error) -> String {
     if e.kind() == std::io::ErrorKind::TimedOut || e.kind() == std::io::ErrorKind::WouldBlock {
@@ -36,7 +51,7 @@ pub fn tcp(addr: SocketAddr) -> Outcome {
         Ok(_) => Outcome::Connected,
         // A refusal means a reply crossed the boundary, so it counts as reaching the target.
         Err(e) if e.raw_os_error() == Some(111) => Outcome::Connected,
-        Err(e) => Outcome::Stopped(explain(&e)),
+        Err(e) => refused(&e),
     }
 }
 
@@ -171,11 +186,11 @@ fn udp_dns(server: SocketAddr, name: &str) -> Outcome {
     };
     let sock = match UdpSocket::bind(bind) {
         Ok(s) => s,
-        Err(e) => return Outcome::Stopped(explain(&e)),
+        Err(e) => return refused(&e),
     };
     let _ = sock.set_read_timeout(Some(Duration::from_millis(1200)));
     if let Err(e) = sock.send_to(&query(name), server) {
-        return Outcome::Stopped(explain(&e));
+        return refused(&e);
     }
     let mut buf = [0u8; 512];
     match sock.recv_from(&mut buf) {
@@ -322,7 +337,7 @@ pub fn probe_many(addrs: Vec<SocketAddr>) -> Vec<(SocketAddr, Outcome)> {
         .expect("runtime");
     rt.block_on(async {
         let mut out = Vec::with_capacity(addrs.len());
-        for batch in addrs.chunks(4096) {
+        for batch in addrs.chunks(1024) {
             let mut set = tokio::task::JoinSet::new();
             for &addr in batch {
                 set.spawn(async move {
@@ -332,7 +347,7 @@ pub fn probe_many(addrs: Vec<SocketAddr>) -> Vec<(SocketAddr, Outcome)> {
                     let outcome = match attempt {
                         Ok(Ok(_)) => Outcome::Connected,
                         Ok(Err(e)) if e.raw_os_error() == Some(111) => Outcome::Connected,
-                        Ok(Err(e)) => Outcome::Stopped(explain(&e)),
+                        Ok(Err(e)) => refused(&e),
                         Err(_) => {
                             Outcome::Stopped("timed out: no packet came back (dropped)".into())
                         }
