@@ -1,0 +1,41 @@
+#!/usr/sbin/nft -f
+# BOGO reference sandbox: the agent's network namespace (ARCHITECTURE §3.17).
+# Default-deny in both directions. The only ways out are BOGO's gate and,
+# per ARCHITECTURE §11 question 1, one fixed forwarder to the model's API host.
+flush ruleset
+
+table inet bogo {
+	chain output {
+		type filter hook output priority filter; policy drop;
+
+		# Docker's embedded resolver lives on loopback and forwards outside
+		# lookups. Drop it, on every port, before any loopback accept.
+		ip daddr 127.0.0.11 drop
+
+		# The namespace's own loopback, 127.0.0.1 to itself only.
+		oifname "lo" ip saddr 127.0.0.1 ip daddr 127.0.0.1 accept
+
+		# BOGO, through the fixed TCP forwarder ("gate").
+		ip daddr 172.30.0.2 tcp dport 8790 accept
+
+		# The model's API host, through its own fixed forwarder (§11 Q1).
+		# Remove this line and the model-gate service if the model runs outside.
+		ip daddr 172.30.0.3 tcp dport 443 accept
+
+		# Everything else: no DNS, no other bogo-net address, no gateway,
+		# no link-local, private or public range, and no IPv6 at all.
+	}
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		ip saddr 127.0.0.11 drop
+		iifname "lo" ip saddr 127.0.0.1 ip daddr 127.0.0.1 accept
+		ip saddr 172.30.0.2 tcp sport 8790 ct state established accept
+		ip saddr 172.30.0.3 tcp sport 443 ct state established accept
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}
