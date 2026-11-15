@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/bogo-json", "crates/bogo-config"]
+members = ["crates/bogo-json", "crates/bogo-config", "crates/bogo-e2e", "crates/bogo-verify", "crates/bogo-relay-proto", "crates/bogo-relay", "crates/bogo-apns", "crates/bogo-attest"]
 
 [workspace.package]
 version = "0.1.0"
