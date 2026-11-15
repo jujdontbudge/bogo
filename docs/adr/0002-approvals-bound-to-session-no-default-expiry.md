@@ -1,0 +1,3 @@
+# Approvals have no expiry by default; they die with their session
+
+Unlike the original PRD, which made an expiry mandatory, a request has no preset expiry. It ends when it is decided, when the owner cancels it, or when the agent's call or session ends (disconnect, cancel or client timeout). A late approval is then rejected, so a request can never outlive the session that asked. An optional per-tool expiry adds a hard deadline. "Fresh" therefore means: the session is alive, and the expiry has not passed if one is set. The owner wanted no preset deadline, and tying requests to the session keeps them fail-closed without one.
