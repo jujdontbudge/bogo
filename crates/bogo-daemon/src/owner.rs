@@ -480,8 +480,16 @@ pub async fn request(root: &Path, c: Command) -> Result<Value> {
     w.write_all(format!("{}\n", serde_json::to_string(&c).map_err(error)?).as_bytes())
         .await
         .map_err(error)?;
+    let mut result_bytes = Vec::new();
     loop {
         let v: Value = serde_json::from_str(&line(&mut r).await?).map_err(error)?;
+        if let Some(chunk) = v.get("result_chunk").and_then(Value::as_str) {
+            result_bytes.extend(URL_SAFE_NO_PAD.decode(chunk).map_err(error)?);
+            continue;
+        }
+        if v.get("result_end") == Some(&Value::Bool(true)) {
+            return serde_json::from_slice(&result_bytes).map_err(error);
+        }
         if let Some(s) = v.get("status").and_then(Value::as_str) {
             eprintln!("{s}");
             continue;
@@ -514,6 +522,20 @@ struct RemotePrompt {
     w: tokio::sync::Mutex<tokio::net::unix::OwnedWriteHalf>,
 }
 impl RemotePrompt {
+    async fn result(&self, result: Result<Value>) -> Result<()> {
+        let value = match result {
+            Ok(v) => v,
+            Err(e) => return self.send(json!({"error":e})).await,
+        };
+        // Results can span the entire audit history. Bound each transport frame,
+        // rather than applying the command limit to the whole result.
+        let bytes = serde_json::to_vec(&value).map_err(error)?;
+        for chunk in bytes.chunks(64 * 1024) {
+            self.send(json!({"result_chunk":URL_SAFE_NO_PAD.encode(chunk)}))
+                .await?;
+        }
+        self.send(json!({"result_end":true})).await
+    }
     async fn send(&self, v: Value) -> Result<()> {
         self.w
             .lock()
@@ -819,12 +841,7 @@ async fn connection(stream: UnixStream, handle: Handle, hub: Arc<a::Hub>) -> Res
     } else {
         handle.control(c).await
     };
-    remote
-        .send(match result {
-            Ok(v) => json!({"result":v}),
-            Err(e) => json!({"error":e}),
-        })
-        .await
+    remote.result(result).await
 }
 
 pub async fn serve(root: &Path) -> Result<()> {

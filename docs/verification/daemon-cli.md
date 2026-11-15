@@ -220,4 +220,34 @@ KeepAlive restart, stop and plist RunAtLoad were checked. The sandbox and Link
 CLI remain separate tickets. The initial audit verification and guards were
 performed with real clients; no new implementation-mirroring tests were added.
 
-Sol-loop results are recorded after the review completes.
+## Sol review ledger
+
+Round 1: `codex`, `gpt-6.1-sol`, medium effort. Verdict: CHANGES.
+
+- R1 (blocker, fixed): verification accepted a protected forward without its
+  threshold. It now checks distinct counted signatures against eligible active
+  registrations at the recorded registry sequence, binding votes to the checked
+  key registration. The reviewer's public-owner-API regression failed before
+  the fix and passes afterward.
+- R2 (should, fixed): running log queries failed above the 1 MiB frame limit.
+  Results now travel in bounded base64 chunks, including exports. The reviewer's
+  real daemon regression with four 300 KB records failed before the fix and
+  passes afterward.
+
+Both reviewer tests are retained in `crates/bogo-daemon/tests/review_daemon.rs`.
+Default and feature-enabled full workspace tests and Clippy passed after both
+fixes. The feature suite also passed on the pre-review final code. A fresh real
+shim allow/read and protected write passed, with exactly one forwarding record
+and exact approved file content. The strengthened verifier accepted the real
+199-entry audit (10 counted approvals, one ignored duplicate, two denials).
+
+Evidence output: `/tmp/bogo-assembly-verification/review-before.out`,
+`review-after.out`, `review-real-use.out`, `review-workspace.out`,
+`review-default-tests.out`, `review-clippy.out`, `review-default-clippy.out`.
+The first rerun of the usage script stopped because its old agent name already
+existed; it was rerun with a fresh name and succeeded. No product error was
+hidden or check weakened.
+
+Round 2 is pending. No findings declined. Review usage was not exposed. Nothing
+was pushed. Before review: 29 files, 2960 insertions, 6 deletions; final size is
+recorded after round 2.
