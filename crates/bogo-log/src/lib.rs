@@ -6,6 +6,7 @@
 //! then releases the callers, so whatever a caller does after `append`
 //! returns happens after its record is durable.
 mod event;
+pub mod reader;
 pub mod outcome;
 pub mod registry;
 pub mod verify;

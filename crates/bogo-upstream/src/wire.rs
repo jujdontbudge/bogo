@@ -56,5 +56,9 @@ pub(crate) fn forward(
     }
     let id = serde_json::to_string(&r.id).map_err(|_| Error::Protocol)?;
     let tool = serde_json::to_string(&f.tool).map_err(|_| Error::Protocol)?;
-    Ok(format!("{{\"jsonrpc\":\"2.0\",\"id\":{id},\"method\":\"tools/call\",\"params\":{{\"name\":{tool},\"arguments\":{}}}}}", f.arguments.write()).into_bytes())
+    let arguments = f
+        .arguments
+        .map(|a| format!(",\"arguments\":{}", a.write()))
+        .unwrap_or_default();
+    Ok(format!("{{\"jsonrpc\":\"2.0\",\"id\":{id},\"method\":\"tools/call\",\"params\":{{\"name\":{tool}{arguments}}}}}").into_bytes())
 }

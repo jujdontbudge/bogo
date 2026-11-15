@@ -1,0 +1,17 @@
+[package]
+name = "bogo"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.89"
+publish.workspace = true
+[features]
+default = []
+test-approvers = ["bogo-daemon/test-approvers"]
+test-registration = ["bogo-daemon/test-registration"]
+[dependencies]
+bogo-daemon = { path = "../bogo-daemon" }
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+serde_json.workspace = true
+[lints]
+workspace = true

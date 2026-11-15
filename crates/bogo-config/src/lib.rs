@@ -92,6 +92,7 @@ pub struct Relay {
     pub url: String,
     /// How long the relay keeps an undelivered message. Never a request expiry.
     pub max_message_age: Duration,
+    pub mailbox_capacity: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -310,7 +311,7 @@ impl Validator<'_> {
                     "[approvers.iphone] needs a [relay] section to reach the phone",
                 ));
             }
-            if apns.is_none() {
+            if apns.is_none() && !cfg!(feature = "test-registration") {
                 return Err(err(
                     "[approvers.iphone] needs an [apns] section to wake the phone",
                 ));
@@ -389,9 +390,14 @@ impl Validator<'_> {
             )));
         }
         let max_message_age = owner_sets_duration(r.max_message_age, "[relay] max_message_age")?;
+        let mailbox_capacity = r.mailbox_capacity
+            .and_then(|v| u64::try_from(v).ok())
+            .filter(|v| *v > 0)
+            .ok_or_else(|| err("[relay] mailbox_capacity is not set or is not positive; BOGO will not start until it is set"))?;
         Ok(Relay {
             url: r.url,
             max_message_age,
+            mailbox_capacity,
         })
     }
 
