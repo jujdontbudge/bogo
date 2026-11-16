@@ -112,7 +112,7 @@ are refused. Quote names containing dots in TOML.
 | `mode` | `"wait"` (default), or `"pending_retry"`. Retry requires identical arguments and justification in the same session; first approved retry consumes the request. | Other spellings/types. Direct stateless MCP connections cannot use pending/retry; use the shim. |
 | `filter_output` | Field paths to remove from results; default `[]`. | Empty string, paths with empty dot segments (e.g. `a..b`, `.a`, `a.`), non-string elements. |
 | `filter_action` | `"strip"` (default) removes matching fields; `"redact"` replaces them with `[removed by BOGO]`. | Other spellings/types. |
-| `select` | Optional name of one top-level argument whose string value picks a per-action entry (below). The selected argument is also highlighted first, as text, unless `highlight` already names it. | Empty, or characters other than ASCII letters, digits, `_`, `.`, `-`. |
+| `select` | Optional name of one top-level argument whose string value picks a per-action entry (below). The selected argument is also highlighted first: in the format `highlight` gives it, else as text. | Empty, or characters other than ASCII letters, digits, `_`, `.`, `-`. |
 
 Highlight paths support object keys separated by dots and unsigned u32 array
 indices: `amount`, `payment.amount`, `items[0].price`, `[2]`. Empty dot segments,

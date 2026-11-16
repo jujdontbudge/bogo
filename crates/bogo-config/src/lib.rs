@@ -971,12 +971,14 @@ fn valid_selector(arg: &str) -> bool {
 }
 
 /// The approver sees which action a call asks for first: the selected argument leads the
-/// highlighted fields, as text, unless the owner already highlights it.
+/// highlighted fields, in the owner's format if they highlight it, else as text.
 fn add_selector_hint(hints: &mut Vec<(Vec<PathElem>, Format)>, arg: &str) {
     let path = vec![PathElem::Key(arg.to_owned())];
-    if !hints.iter().any(|(p, _)| *p == path) {
-        hints.insert(0, (path, Format::Text));
-    }
+    let hint = match hints.iter().position(|(p, _)| *p == path) {
+        Some(i) => hints.remove(i),
+        None => (path, Format::Text),
+    };
+    hints.insert(0, hint);
 }
 
 fn parse_policy(p: &str) -> Option<Policy> {
