@@ -1077,7 +1077,7 @@ pub async fn serve(root: &Path) -> Result<()> {
                             .and_then(|id| shell.registry.agents.get(&hex::encode(id)));
                         let agent_id = agent.map(|a| a.id.clone());
                         let agent_name = agent.map(|a| a.name.clone());
-                        let policy = agent.map(|a| {
+                        let policy = agent.filter(|_| !tool.contains('[')).map(|a| {
                             format!("{:?}", policy::effective(&shell.config, &a.name, name))
                         });
                         shell
