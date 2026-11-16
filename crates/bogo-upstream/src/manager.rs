@@ -139,13 +139,13 @@ impl Manager {
         let catalog = self.state.catalog.read().await;
         let mut tools = Vec::new();
         for (name, entry) in &catalog.tools {
-            let policy = effective_policy(&self.state.config, agent, name);
-            if policy == Policy::Deny && self.state.config.defaults.hide_denied {
+            let (any_approve, all_deny) = listed(&self.state.config, agent, name);
+            if all_deny && self.state.config.defaults.hide_denied {
                 continue;
             }
             let mut tool = entry.original.clone();
             tool["name"] = json!(name);
-            if policy == Policy::Approve {
+            if any_approve {
                 let (schema, key, _) = widen(&tool["inputSchema"])?;
                 if entry.justification.as_ref() != Some(&key) {
                     return Err(Error::Protocol);
@@ -208,19 +208,18 @@ fn adjust_output(config: &Config, name: &str, tool: &mut Value) {
     }
 }
 
-fn effective_policy(config: &Config, agent: &str, name: &str) -> Policy {
-    config
-        .agents
-        .get(agent)
-        .and_then(|t| t.get(name))
-        .and_then(|o| o.policy)
-        .unwrap_or_else(|| {
-            config
-                .tools
-                .get(name)
-                .map(|t| t.policy)
-                .unwrap_or(config.defaults.policy.into())
-        })
+/// How one listed tool looks to an agent, across the tool and each per-action entry: whether
+/// any of them needs approval (so the agent sees the justification field), and whether all of
+/// them are denied (so `hide_denied` may hide it).
+fn listed(config: &Config, agent: &str, name: &str) -> (bool, bool) {
+    let policies: Vec<Policy> = config
+        .policy_names(name)
+        .map(|n| config.effective_policy(agent, n))
+        .collect();
+    (
+        policies.contains(&Policy::Approve),
+        policies.iter().all(|p| *p == Policy::Deny),
+    )
 }
 async fn connect(
     state: &State,
@@ -297,7 +296,7 @@ async fn discover(state: &State, name: &str, peer: &Peer<RoleClient>) -> Result<
         let mut advertised = original.clone();
         advertised["name"] = json!(name_full);
         // Keep one stable chosen key even when a per-agent override changes policy.
-        if effective_policy(&state.config, "", &name_full) == Policy::Approve {
+        if listed(&state.config, "", &name_full).0 {
             advertised["inputSchema"] = schema;
         }
         adjust_output(&state.config, &name_full, &mut advertised);

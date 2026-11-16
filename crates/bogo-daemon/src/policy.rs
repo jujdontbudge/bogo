@@ -83,14 +83,5 @@ pub fn config(c: &c::Config) -> k::PolicyConfig {
     }
 }
 pub fn effective(c: &c::Config, agent: &str, tool: &str) -> c::Policy {
-    c.agents
-        .get(agent)
-        .and_then(|a| a.get(tool))
-        .and_then(|o| o.policy)
-        .unwrap_or_else(|| {
-            c.tools
-                .get(tool)
-                .map(|t| t.policy)
-                .unwrap_or(c.defaults.policy.into())
-        })
+    c.effective_policy(agent, tool)
 }
