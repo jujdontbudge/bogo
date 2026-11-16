@@ -41,7 +41,11 @@ impl ExactChildTransport {
             return Err(Error::Configuration);
         };
         let mut cmd = Command::new(command);
+        // A fixed working directory: relative paths in `args` mean the same thing
+        // to the owner's startup check and to the child, whatever directory BOGO
+        // was started from.
         cmd.args(args)
+            .current_dir("/")
             .env_clear()
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

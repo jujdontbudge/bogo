@@ -588,8 +588,8 @@ Envelope := "BOGOE2E" 0x00 | u8 version=1 | u8 direction | u8 type | 16 bytes ms
      - the key ID,
      - the RP ID hash for the App ID in `[approvers.iphone] app_id` (default `AX3C2B78YD.com.johansardar.applebridge.ios`, from `project.yml`'s team and bundle; the App ID prefix is checked once against the provisioning profile, since it need not equal the team ID),
      - counter 0, the credential ID, and the AAGUID environment,
-     - `apple_validation_category_01` and `apple_bundle_version_01`, which BOGO's own code parses.
-   - **Environment and category** against `[approvers.iphone] app_attest`. The default `["production"]` accepts TestFlight or App Store builds. `"development"` is accepted only if the owner lists it.
+     - the COSE credential key, which must equal the certified key and end the authenticator data. *Correction (2026-11-16, first real iPhone):* real App Attest data is 164 bytes with flags `0x40` and carries no extension map, so there is no `apple_validation_category_01` or `apple_bundle_version_01` to read. BOGO checks them only if Apple ever sends the map (flag ED set); otherwise the registration records them as null.
+   - **Environment** (from the AAGUID) against `[approvers.iphone] app_attest`. The default `["production"]` accepts TestFlight or App Store builds; the two can't be told apart without the extension map. `"development"` is accepted only if the owner lists it.
    - **The proof-of-possession signature.**
 
    On success the Mac appends `approver_registered` and waits until it is durable, then updates its mailbox allowlist. Only then does it answer `registered {txId, approverId}`, on the lobby channel and as an envelope in the phone's mailbox.

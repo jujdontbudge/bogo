@@ -247,12 +247,15 @@ fn load(root: &Path) -> Result<(Config, bogo_config::Secrets)> {
         if let bogo_config::Upstream::Local { command, args, .. } = u {
             for s in std::iter::once(command).chain(args) {
                 let s = s.split_once('=').map_or(s.as_str(), |(_, v)| v);
+                // Upstreams run with working directory `/` (bogo-upstream), so a
+                // relative argument is judged from there, not from the caller's cwd.
                 let expanded = if let Some(tail) = s.strip_prefix("~/") {
                     PathBuf::from(std::env::var_os("HOME").ok_or("HOME not set")?).join(tail)
                 } else {
-                    PathBuf::from(s)
+                    Path::new("/").join(s)
                 };
-                if expanded.is_absolute()
+                if Path::new(s).is_absolute()
+                    || s.starts_with("~/")
                     || s.contains('/')
                     || s.starts_with('.')
                     || expanded.exists()
@@ -944,9 +947,9 @@ pub async fn serve(root: &Path) -> Result<()> {
                 _ => Err("APNs key must be a path secret"),
             })
             .transpose()?;
-        let bundle_versions = std::env::var("BOGO_APP_BUNDLE_VERSIONS").map_err(
-            |_| "set BOGO_APP_BUNDLE_VERSIONS to the accepted App Attest bundle versions",
-        )?;
+        // Real App Attest attestations carry no bundle version, so this list is
+        // only consulted if Apple ever sends one; it is optional.
+        let bundle_versions = std::env::var("BOGO_APP_BUNDLE_VERSIONS").unwrap_or_default();
         let route = bogo_approver_iphone::IphoneRoute::new(
             bogo_approver_iphone::Config {
                 relay_url: relay.url.clone(),
@@ -970,7 +973,12 @@ pub async fn serve(root: &Path) -> Result<()> {
                         }
                     })
                     .collect(),
-                bundle_versions: bundle_versions.split(',').map(str::to_owned).collect(),
+                bundle_versions: bundle_versions
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .map(str::to_owned)
+                    .collect(),
                 apns,
             },
             bogo_approver_iphone::MacKeys {

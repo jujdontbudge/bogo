@@ -75,8 +75,9 @@ values. Set them deliberately. The standalone relay also requires explicit
 deployment settings. The daemon does not administer the relay remotely.
 
 Put the APNs key under BOGO's private directory and refer to it with a path
-secret in `secrets.toml`. Set `BOGO_APP_BUNDLE_VERSIONS` to the comma-separated
-accepted App Attest build numbers before `bogo start`. For a private test relay,
+secret in `secrets.toml`. `BOGO_APP_BUNDLE_VERSIONS` (comma-separated build
+numbers) is optional: real App Attest data carries no build number, so it only
+matters if Apple ever includes one. For a private test relay,
 `BOGO_RELAY_CA` names its PEM certificate. `BOGO_MAC_NAME` sets the registration
 label. These three non-secret settings are copied into the user LaunchAgent;
 credentials are not copied into it.

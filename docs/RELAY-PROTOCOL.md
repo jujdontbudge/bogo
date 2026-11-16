@@ -210,12 +210,16 @@ No system trust or network is used. Each public named step returns only its step
 name on failure, without input bytes. `verify` executes all steps in order:
 CBOR/format, certificate chain (including constraints, signatures and time),
 nonce, key ID, RP ID hash, zero counter, AAGUID/environment, credential ID, COSE
-key agreement with the certificate, Apple validation category and bundle version.
+key agreement with the certificate (the key must end the authenticator data),
+and, only when the ED flag is set, Apple's validation category and bundle version.
 
-The caller supplies trusted time, the exact App ID prefix + bundle ID, allowed
-environments and accepted bundle versions. Production accepts Apple's categories
-2 (TestFlight) and 4 (App Store); explicitly allowed development accepts 3.
-The category is Apple's four-byte little-endian UInt32 CBOR byte string.
+Real App Attest authenticator data (seen on a real iPhone on 2026-11-16) is 164
+bytes, flags `0x40`, with no extension map, so category and bundle version are
+normally absent and recorded as null. The caller supplies trusted time, the exact
+App ID prefix + bundle ID, allowed environments and the bundle versions to accept
+if a map is present. When present, production accepts categories 2 (TestFlight)
+and 4 (App Store) and explicitly allowed development accepts 3; the category is a
+four-byte little-endian UInt32 CBOR byte string.
 Certificate signing digests (SHA-256/SHA-384) are selected independently of
 the P-256/P-384 issuer curve, as in Apple's published sample chain.
 The registration driver computes `registration_client_data_hash` from its own

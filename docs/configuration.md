@@ -85,7 +85,8 @@ Use plain env strings for noncredentials such as `"1"`.
 
 At daemon load, local `command` and `args` that look like paths are normalized
 through symlinks that successfully resolve. An argument's portion after `=` is
-checked too. Paths into
+checked too. Local upstreams always run with working directory `/`, so a relative
+argument means a path under `/`, whatever directory BOGO was started from. Paths into
 BOGO home, or any parent of BOGO home, are refused. Path secrets are the
 separate way to supply upstream credential paths. This startup check is not a
 sandbox for arbitrary executable behavior: the owner must trust the upstream
@@ -223,7 +224,7 @@ configuration outside the agent's editable project when using a sandbox.
 | Variable | Consumer and behavior |
 |---|---|
 | `BOGO_URL`, `BOGO_AGENT_TOKEN` | Required by the stdio shim: MCP URL and named agent token. |
-| `BOGO_APP_BUNDLE_VERSIONS` | Required when daemon constructs the iPhone route; comma-separated accepted App Attest build numbers. Whitespace is not trimmed by the split. |
+| `BOGO_APP_BUNDLE_VERSIONS` | Optional comma-separated App Attest build numbers, trimmed. Real attestations carry no build number, so the list is used only if Apple includes one; unset means none would be accepted then. |
 | `BOGO_RELAY_CA` | Optional PEM file adding trust for a private relay; normal TLS hostname checking stays enabled. |
 | `BOGO_MAC_NAME` | Optional registration label; defaults to `BOGO Mac`. |
 | `BOGO_LAKE`, `BOGO_LEAN` | Build-only overrides for the actual lake/lean executable paths. Normally use elan on PATH and the pinned toolchain. |
