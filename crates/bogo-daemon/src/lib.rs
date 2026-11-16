@@ -202,6 +202,7 @@ impl a::Sink for Handle {
     }
 }
 struct Call {
+    /// The tool as listed, `<upstream>__<tool>`, never a policy key.
     name: String,
     req: Option<Bytes>,
     waiters: Vec<oneshot::Sender<Outcome>>,
@@ -212,6 +213,8 @@ struct Shell {
     log: Log,
     registry: Registry,
     config: Config,
+    /// Each catalog tool's justification argument, from the last catalog.
+    just_keys: HashMap<String, String>,
     calls: HashMap<Bytes, Call>,
     sessions: HashMap<Bytes, Bytes>,
     requests: HashMap<Bytes, (Bytes, Vec<Bytes>)>,
@@ -277,17 +280,28 @@ impl Shell {
                 )),
             }])
             .await?[0];
+        self.just_keys = catalog
+            .tools
+            .iter()
+            .filter_map(|(n, t)| Some((n.clone(), t.justification.clone()?)))
+            .collect();
+        // A policy key is one more catalog name for the same upstream tool, so the core judges
+        // and forwards it exactly as it would the tool, under the key's own policy.
         self.step(Input::Configure {
             seq,
             cfg: policy::config(&self.config),
             catalog: catalog
                 .tools
                 .iter()
-                .map(|(n, t)| bogo_core::CatalogEntry {
-                    name: n.clone(),
-                    upstream: t.upstream.clone(),
-                    tool: n.split_once("__").unwrap().1.into(),
-                    just_key: t.justification.clone().unwrap_or_default(),
+                .flat_map(|(n, t)| {
+                    self.config
+                        .policy_names(n)
+                        .map(|key| bogo_core::CatalogEntry {
+                            name: key.into(),
+                            upstream: t.upstream.clone(),
+                            tool: n.split_once("__").unwrap().1.into(),
+                            just_key: t.justification.clone().unwrap_or_default(),
+                        })
                 })
                 .collect(),
         })
@@ -322,6 +336,23 @@ impl Shell {
         )
         .map_err(|e| e.to_string())?;
         Ok(())
+    }
+    /// The name the core judges a call by: the configured policy key for the call's selected
+    /// argument, else the tool itself. The selected argument must be a top-level string and
+    /// not the justification BOGO strips before forwarding.
+    fn policy_key(&self, tool: &str, args: Option<&bogo_json::JVal>) -> String {
+        self.config.policy_key(tool, |arg| {
+            if self.just_keys.get(tool).is_some_and(|k| k == arg) {
+                return None;
+            }
+            match args? {
+                bogo_json::JVal::Obj(o) => match o.get(arg)? {
+                    bogo_json::JVal::Str(s) => Some(s.as_str()),
+                    _ => None,
+                },
+                _ => None,
+            }
+        })
     }
     fn deliver(&mut self, call: &[u8], out: Outcome) {
         if let Some(c) = self.calls.remove(call) {

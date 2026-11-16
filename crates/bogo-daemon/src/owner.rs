@@ -744,44 +744,54 @@ impl Shell {
     }
     async fn tool_report(&self) -> Value {
         let catalog = self.manager.catalog().await;
+        // One row for each tool, then one for each per-action policy key of it.
         let tools: Vec<Value> = catalog
             .tools
             .iter()
-            .map(|(name, t)| {
-                let overrides: Value = self
-                    .config
-                    .agents
-                    .iter()
-                    .filter_map(|(agent, ts)| {
-                        ts.get(name).map(|_| {
-                            (
-                                agent.clone(),
-                                json!(format!(
-                                    "{:?}",
-                                    policy::effective(&self.config, agent, name)
-                                )),
-                            )
+            .flat_map(|(tool, t)| {
+                self.config.policy_names(tool).map(move |name| {
+                    let overrides: Value = self
+                        .config
+                        .agents
+                        .iter()
+                        .filter_map(|(agent, ts)| {
+                            ts.get(name).map(|_| {
+                                (
+                                    agent.clone(),
+                                    json!(format!(
+                                        "{:?}",
+                                        policy::effective(&self.config, agent, name)
+                                    )),
+                                )
+                            })
                         })
-                    })
-                    .collect();
-                let policy = self.config.tools.get(name);
-                let eligible = self
-                    .registry
-                    .active_approvers()
-                    .filter(|a| {
-                        policy.is_none_or(|t| {
-                            t.approvers.is_empty() || t.approvers.contains(&a.entry.name)
+                        .collect();
+                    let policy = self.config.tools.get(name);
+                    let eligible = self
+                        .registry
+                        .active_approvers()
+                        .filter(|a| {
+                            policy.is_none_or(|t| {
+                                t.approvers.is_empty() || t.approvers.contains(&a.entry.name)
+                            })
                         })
-                    })
-                    .count();
-                let k = policy.map_or(1, |t| match t.requirement {
-                    bogo_config::Requirement::AnyOf => 1,
-                    bogo_config::Requirement::KOfN(k) => k,
-                });
-                json!({"name":name,"policy":format!("{:?}",policy::effective(&self.config,"",name)),
-                "overrides":overrides,"strict_client_risk":t.strict_client_risk,
-                "justification_key":t.justification,"eligible_approvers":eligible,"require":k,
-                "no_eligible_approver":eligible<(k as usize),"first_seen":t.first_seen})
+                        .count();
+                    let k = policy.map_or(1, |t| match t.requirement {
+                        bogo_config::Requirement::AnyOf => 1,
+                        bogo_config::Requirement::KOfN(k) => k,
+                    });
+                    let mut row = json!({"name":name,"policy":format!("{:?}",policy::effective(&self.config,"",name)),
+                    "overrides":overrides,"strict_client_risk":t.strict_client_risk,
+                    "justification_key":t.justification,"eligible_approvers":eligible,"require":k,
+                    "no_eligible_approver":eligible<(k as usize),"first_seen":t.first_seen});
+                    if let Some(arg) = policy.and_then(|p| p.select.as_deref()) {
+                        row["select"] = json!(arg);
+                    }
+                    if name != tool {
+                        row["action_of"] = json!(tool);
+                    }
+                    row
+                })
             })
             .collect();
         json!({"tools":tools,"unexposable":catalog.unexposable})
@@ -1005,6 +1015,7 @@ pub async fn serve(root: &Path) -> Result<()> {
         log,
         registry,
         config,
+        just_keys: HashMap::new(),
         calls: HashMap::new(),
         sessions: HashMap::new(),
         requests: HashMap::new(),
@@ -1043,24 +1054,30 @@ pub async fn serve(root: &Path) -> Result<()> {
                     Job::Event(i) => {
                         shell.step(i).await?;
                     }
-                    Job::Invoke(i, tx) => {
+                    Job::Invoke(mut i, tx) => {
                         let Input::Call {
                             call,
                             session,
                             name,
                             args,
                             ..
-                        } = &i
+                        } = &mut i
                         else {
                             return Err("non-call invocation".into());
                         };
+                        // The core sees the policy key (`tool[arg=value]`) the owner configured
+                        // for this exact argument, or the tool's own name. The upstream still
+                        // gets the core's forward: the real tool and these same arguments.
+                        let tool = std::mem::take(name);
+                        *name = shell.policy_key(&tool, args.as_ref());
+                        let (call, session, name, args) = (&*call, &*session, &*name, &*args);
                         let agent = shell
                             .sessions
                             .get(session)
                             .and_then(|id| shell.registry.agents.get(&hex::encode(id)));
                         let agent_id = agent.map(|a| a.id.clone());
                         let agent_name = agent.map(|a| a.name.clone());
-                        let policy = agent.map(|a| {
+                        let policy = agent.filter(|_| !tool.contains('[')).map(|a| {
                             format!("{:?}", policy::effective(&shell.config, &a.name, name))
                         });
                         shell
@@ -1074,10 +1091,24 @@ pub async fn serve(root: &Path) -> Result<()> {
                                 policy,
                             }])
                             .await?;
+                        if tool.contains('[') {
+                            // Only BOGO derives a policy key; an agent naming one is
+                            // asking for a tool that does not exist.
+                            let call = call.clone();
+                            shell
+                                .append(vec![LogEvent::CallOutcome {
+                                    call: Hex(call.clone()),
+                                    outcome: "rejected:UnknownTool".into(),
+                                    registry_seq: None,
+                                }])
+                                .await?;
+                            let _ = tx.send(Outcome::Rejected(bogo_core::Rejection::UnknownTool));
+                            return Ok(());
+                        }
                         shell.calls.insert(
                             call.clone(),
                             Call {
-                                name: name.clone(),
+                                name: tool,
                                 req: None,
                                 waiters: vec![tx],
                                 staged: false,

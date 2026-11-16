@@ -70,6 +70,13 @@ These statements come from
 | `single_use_bytes` | Two forwards of one protected request ID in a byte trace occur at the same step. |
 | `approved_bytes` | A protected byte-trace forward has the exact stored destination/arguments and enough distinct registered eligible holders who approved its signed bytes, under A1. The fuller policy conditions follow through `bytes_lift` and `approved`. |
 
+The core's tool names are opaque strings. With per-action policy
+(`select`, see [configuration](configuration.md#per-action-policy-toolsupstream__toolargvalue)),
+the daemon passes the policy key `tool[arg=value]` as the call's name, and each
+key is its own catalog entry for the same upstream tool. Every theorem above
+therefore holds per key unchanged. That the daemon picks the key from exactly the
+call's arguments, and falls back to the tool's own name otherwise, is part of A6.
+
 This does not prove the Rust HTTP JSON parser or Swift decoder equivalent to
 the Lean decoder. Shared vectors and runtime checks provide evidence for those
 implementations; their fidelity is part of the assumptions below.
