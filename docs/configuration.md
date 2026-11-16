@@ -112,6 +112,7 @@ are refused. Quote names containing dots in TOML.
 | `mode` | `"wait"` (default), or `"pending_retry"`. Retry requires identical arguments and justification in the same session; first approved retry consumes the request. | Other spellings/types. Direct stateless MCP connections cannot use pending/retry; use the shim. |
 | `filter_output` | Field paths to remove from results; default `[]`. | Empty string, paths with empty dot segments (e.g. `a..b`, `.a`, `a.`), non-string elements. |
 | `filter_action` | `"strip"` (default) removes matching fields; `"redact"` replaces them with `[removed by BOGO]`. | Other spellings/types. |
+| `select` | Optional name of one top-level argument whose string value picks a per-action entry (below). The selected argument is also highlighted first, as text, unless `highlight` already names it. | Empty, or characters other than ASCII letters, digits, `_`, `.`, `-`. |
 
 Highlight paths support object keys separated by dots and unsigned u32 array
 indices: `amount`, `payment.amount`, `items[0].price`, `[2]`. Empty dot segments,
@@ -137,6 +138,114 @@ A missing or insufficient set of active approvers fails closed at call time.
 approver availability. Check agent overrides separately: that availability
 count is not recomputed for each override.
 
+## Per-action policy: `[tools."UPSTREAM__TOOL[ARG=VALUE]"]`
+
+Some upstreams put many actions behind one wrapper tool and name the action in
+an argument. Link's `call_write_tool`, for example, takes `name =
+"spend-request_create"`, `"spend-request_retrieve"`, `"ucp_catalog_search"` and
+more. Set `select` on the tool, then give single values their own entry:
+
+```toml
+[tools.stripe__call_write_tool]
+policy = "approve"
+select = "name"
+
+[tools."stripe__call_write_tool[name=spend-request_retrieve]"]
+policy = "allow"
+```
+
+For each call, BOGO reads the selected top-level argument. If it is a JSON
+string and an entry exists for exactly that value, the call is judged by that
+entry, under the **policy key** `stripe__call_write_tool[name=spend-request_retrieve]`.
+Otherwise it is judged by the tool's own entry: a value with no entry, a
+different spelling, case or spacing, a missing argument, and a non-string value
+(number, list, object, null) all fall back. Matching is exact string equality;
+there are no patterns. The upstream always receives the real tool and exactly
+the arguments the key was read from, and an approval covers that one request
+only, so changing the value means a new request.
+
+The agent chooses the argument, so **keep the strict policy on the base tool and
+open single values**, as above. Never do the reverse (`policy = "allow"` on the
+base and `"deny"` or `"approve"` on dangerous values): any spelling the upstream
+accepts but the entry does not match would get the base's allow.
+
+Rules:
+
+- The base entry `[tools."UPSTREAM__TOOL"]` must exist with `select` naming the
+  same argument. VALUE must be nonempty and have no control characters. Quote the
+  whole TOML key.
+- A per-action entry accepts `policy`, `justification`, `highlight`, `approvers`,
+  `require`, `on_deny` and `expiry`. Each one it leaves out comes from the base
+  entry (including `policy`), and each one it sets replaces the base's. A
+  `highlight` it sets replaces the base's map; the selected argument is still shown
+  first.
+- `mode`, `filter_output`, `filter_action` and `select` belong to the base entry and
+  apply to every action; setting them on a per-action entry is refused. Filter
+  credential fields on the base when any action that returns them may run at once.
+- The tool is listed once. `hide_denied` hides it only when the base and every
+  per-action entry are denied for that agent. Its schema shows the justification
+  field when any of them needs approval.
+- An agent calling a policy key as if it were a tool name gets `Unknown tool.`
+- The audit log's `call` entries, `bogo tools` (a row per key, with `action_of`
+  naming the tool) and per-agent overrides use the policy key. The signed request
+  keeps the real upstream and tool; the approver sees the action in the
+  highlighted argument.
+
+The core treats each policy key as one more tool name for the same upstream tool,
+so every proved promise holds per key. Which key a call gets is computed by the
+daemon from the same arguments the core signs and forwards.
+
+### Recommended Link setup
+
+Link's MCP server exposes `search_tools` and `get_tool_details` for discovery,
+and runs every action through `call_read_tool` or `call_write_tool`, naming it in
+`name` with its parameters in `arguments`. Agents do not reliably pick the
+read tool for reads, so give both wrapper tools the same shape: approval by
+default, with searches, status reads and retrieval opened by name. Anything that
+creates or approves spending, checks out or logs in (`spend-request_create`,
+`spend-request_request-approval`, `ucp_checkout_create`, `auth_login`, and any
+action Link adds later) has no entry and waits for the phone.
+
+```toml
+[tools.stripe__search_tools]
+policy = "allow"
+[tools.stripe__get_tool_details]
+policy = "allow"
+
+[tools.stripe__call_write_tool]
+policy = "approve"
+select = "name"
+justification = "required"
+highlight = { name = "text", "arguments.amount" = "usd_cents", "arguments.currency" = "text", "arguments.test" = "text", "arguments.merchantName" = "text" }
+expiry = "10m"
+mode = "wait"
+filter_output = ["number", "cvc"]   # retrieval can return card details
+
+[tools.stripe__call_read_tool]
+policy = "approve"
+select = "name"
+justification = "required"
+highlight = { name = "text" }
+expiry = "10m"
+filter_output = ["number", "cvc"]
+
+[tools."stripe__call_write_tool[name=ucp_catalog_search]"]
+policy = "allow"
+[tools."stripe__call_write_tool[name=spend-request_retrieve]"]
+policy = "allow"
+[tools."stripe__call_write_tool[name=auth_status]"]
+policy = "allow"
+[tools."stripe__call_read_tool[name=ucp_catalog_search]"]
+policy = "allow"
+[tools."stripe__call_read_tool[name=spend-request_retrieve]"]
+policy = "allow"
+[tools."stripe__call_read_tool[name=auth_status]"]
+policy = "allow"
+```
+
+Check the action names against `get_tool_details` and `bogo tools` after
+discovery; a name that does not match exactly just waits for approval.
+
 ## Per-agent overrides: `[agents."NAME".tools."UPSTREAM__TOOL"]`
 
 This config does not register an agent or mint a token. Use `bogo agent add`.
@@ -149,7 +258,11 @@ above. Each override accepts **only**:
 | `approvers` | Optional eligible names; otherwise inherit. Explicit `[]` means all registered approvers. | Blank/duplicate/non-string names. |
 | `require` | Optional `"any"` or `{ k = N }`; otherwise inherit. | Same requirement syntax/range errors as a tool. |
 
-An override with none of these three fields is refused. Other settings stay
+An override with none of these three fields is refused. The tool name may be a
+policy key that has a `[tools."…"]` entry. An override on a base tool covers every
+action of it: it is copied to each policy key, and an override on the key itself
+wins field by field. Choosing an action therefore never escapes an agent's
+override. Other settings stay
 with the tool, including display hints and filtering. Unlike a tool entry, an
 override's k/list-size mismatch is accepted by the parser; an unreachable
 threshold still cannot execute. A tool's policy can therefore be opened or

@@ -904,9 +904,24 @@ expiry = "10m"; mode = "wait"                    # or "pending_retry"
 filter_output = ["url"]; filter_action = "strip" # or "redact"
 [agents."Researcher".tools."stripe__<spend tool>"]
 policy = "deny"
+# Link puts its actions behind two wrapper tools, named by the `name` argument.
+# Both wait for the phone by default; searches, status reads and retrieval run at once.
+[tools.stripe__call_write_tool]
+policy = "approve"; justification = "required"; select = "name"
+highlight = { name = "text", "arguments.amount" = "usd_cents", "arguments.currency" = "text", "arguments.test" = "text" }
+expiry = "10m"; mode = "wait"
+filter_output = ["number", "cvc"]                # retrieval can return card details
+[tools."stripe__call_write_tool[name=ucp_catalog_search]"]
+policy = "allow"
+[tools."stripe__call_write_tool[name=spend-request_retrieve]"]
+policy = "allow"
+[tools."stripe__call_write_tool[name=auth_status]"]
+policy = "allow"
+# call_read_tool: the same shape (approve + select = "name", the same three allowed names)
 ```
 
 - **Secrets.** A secret is either a value or `{ path = "…" }`. A path secret is handed to the child as a path, which is how Link CLI keeps and refreshes its own auth file (`LINK_AUTH_FILE` or `--auth`; [Link CLI README](https://github.com/stripe/link-cli/blob/main/README.md)). That file lives under `~/.bogo/upstreams/stripe/`, outside anything the agent can reach (§11).
+- **Per-action policy.** `select` names one top-level argument; `[tools."T[arg=value]"]` gives one exact string value its own entry, starting from T's settings. The daemon hands the core the policy key `T[arg=value]` as the tool name, or T itself for any other value, a missing argument or a non-string. The core treats it as one more catalog name for the same upstream tool, so the proofs hold per key and the forward still names the real tool and the signed arguments. Strict policy belongs on T: the agent picks the value. Full rules: [configuration](configuration.md#per-action-policy-toolsupstream__toolargvalue).
 - **Link testmode.** `--test` is a per-call option for creating a spend request, not a login mode. Whether a request is in testmode is therefore an argument, so the template highlights it next to `amount`. Tool and field names come from `bogo tools` after discovery. Link is for US and Canadian accounts only.
 
 **Formats and how they change:**

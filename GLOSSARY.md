@@ -54,6 +54,10 @@ _Avoid_: command, action, invocation
 The rule for one tool: allow, approve or deny.
 _Avoid_: rule, permission
 
+**Policy key**:
+The name a tool call's policy is looked up by: the tool itself, or `tool[arg=value]` when the owner gave that exact value of the tool's selected argument its own policy.
+_Avoid_: action name, sub-tool
+
 **Protected tool**:
 A tool whose policy is approve.
 
