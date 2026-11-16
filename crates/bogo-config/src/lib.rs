@@ -74,9 +74,12 @@ pub struct Config {
     pub iphone: Option<IphoneApprover>,
     pub upstreams: BTreeMap<String, Upstream>,
     pub defaults: Defaults,
-    /// Keyed by the namespaced tool name, `<upstream>__<tool>`.
+    /// Keyed by the namespaced tool name, `<upstream>__<tool>`, or by a policy key
+    /// `<upstream>__<tool>[<arg>=<value>]` for one action of a tool with `select`. A key's
+    /// entry is already merged with its base tool's.
     pub tools: BTreeMap<String, ToolPolicy>,
-    /// Keyed by agent name, then by namespaced tool name.
+    /// Keyed by agent name, then by namespaced tool name or policy key. An override on a base
+    /// tool is already copied to each of its keys, under any override the key has itself.
     pub agents: BTreeMap<String, BTreeMap<String, AgentOverride>>,
 }
 
@@ -232,6 +235,28 @@ pub struct ToolPolicy {
     pub mode: Mode,
     pub filter_output: Vec<String>,
     pub filter_action: FilterAction,
+    /// The top-level argument whose string value picks a per-action entry (`[tools."X[arg=v]"]`).
+    /// Set only on a base tool; a key's own entry has `None`.
+    pub select: Option<String>,
+}
+
+impl ToolPolicy {
+    /// What an entry that sets nothing means: `policy` from `[defaults]`, everything else off.
+    fn unset(policy: Policy) -> ToolPolicy {
+        ToolPolicy {
+            policy,
+            justification_required: false,
+            hints: Vec::new(),
+            approvers: Vec::new(),
+            requirement: Requirement::AnyOf,
+            deny_rule: DenyRule::AnyDenial,
+            expiry: None,
+            mode: Mode::Wait,
+            filter_output: Vec::new(),
+            filter_action: FilterAction::Strip,
+            select: None,
+        }
+    }
 }
 
 /// A per-agent override. Mirrors Lean's `AgentOverride`: unset fields fall back to the tool.
@@ -246,6 +271,54 @@ pub struct AgentOverride {
 // Loading
 
 impl Config {
+    /// The name the policy of a call to tool `name` is looked up by. When the tool has `select`
+    /// and the call's selected argument is a string with an entry of its own, that is the policy
+    /// key `name[arg=value]`; otherwise it is `name` itself. `selected` returns the call's
+    /// top-level argument of that name when it is a JSON string, and `None` otherwise.
+    ///
+    /// The agent chooses the argument, so a value without an entry, a non-string or a missing
+    /// argument always lands on the base tool's policy, never on another key.
+    pub fn policy_key<'a>(
+        &self,
+        name: &str,
+        selected: impl FnOnce(&str) -> Option<&'a str>,
+    ) -> String {
+        if let Some(arg) = self.tools.get(name).and_then(|t| t.select.as_deref())
+            && let Some(value) = selected(arg)
+        {
+            let key = format!("{name}[{arg}={value}]");
+            if self.tools.contains_key(&key) {
+                return key;
+            }
+        }
+        name.to_owned()
+    }
+
+    /// The base tool and every policy key configured for one of its actions.
+    pub fn policy_names<'a>(&'a self, base: &'a str) -> impl Iterator<Item = &'a str> + 'a {
+        let prefix = format!("{base}[");
+        let keys = self
+            .tools
+            .range(prefix.clone()..)
+            .map(|(k, _)| k.as_str())
+            .take_while(move |k| k.starts_with(&prefix));
+        std::iter::once(base).chain(keys)
+    }
+
+    /// The policy one agent has for a tool name or policy key: its override, else the tool's
+    /// entry, else the default policy.
+    pub fn effective_policy(&self, agent: &str, name: &str) -> Policy {
+        self.agents
+            .get(agent)
+            .and_then(|a| a.get(name))
+            .and_then(|o| o.policy)
+            .unwrap_or_else(|| {
+                self.tools
+                    .get(name)
+                    .map_or(self.defaults.policy.into(), |t| t.policy)
+            })
+    }
+
     /// Load `bogo.toml` and `secrets.toml` from files. `home` expands `~/` in path secrets.
     pub fn load(
         bogo_toml: &Path,
@@ -328,10 +401,52 @@ impl Validator<'_> {
         }
         let defaults = self.defaults(f.defaults)?;
         let mut tools = BTreeMap::new();
+        let mut actions = Vec::new();
         for (name, t) in f.tools {
             let at = format!("[tools.\"{}\"]", name.escape_debug());
+            if name.contains('[') {
+                actions.push((name, at, t));
+                continue;
+            }
             check_tool_name(&name, &upstreams, &at)?;
-            let t = self.tool(&at, t, defaults.policy)?;
+            let t = self.tool(&at, t, &ToolPolicy::unset(defaults.policy.into()))?;
+            tools.insert(name, t);
+        }
+        // A per-action entry starts from its base tool's, so it must come after all bases.
+        for (name, at, t) in actions {
+            let (base, arg, value) = split_key(&name).ok_or_else(|| {
+                err(format!(
+                    "{at}: a per-action entry is `<upstream>__<tool>[<arg>=<value>]`, e.g. \
+                     \"stripe__call_write_tool[name=spend-request_retrieve]\""
+                ))
+            })?;
+            check_tool_name(base, &upstreams, &at)?;
+            let Some(inherit) = tools.get(base).filter(|b| b.select.as_deref() == Some(arg)) else {
+                return Err(err(format!(
+                    "{at}: [tools.\"{base}\"] needs select = \"{}\" for per-action entries",
+                    arg.escape_debug()
+                )));
+            };
+            if value.is_empty() || value.chars().any(char::is_control) {
+                return Err(err(format!(
+                    "{at}: the value after `=` must be nonempty and have no control characters"
+                )));
+            }
+            for (field, set) in [
+                ("select", t.select.is_some()),
+                ("mode", t.mode.is_some()),
+                ("filter_output", t.filter_output.is_some()),
+                ("filter_action", t.filter_action.is_some()),
+            ] {
+                if set {
+                    return Err(err(format!(
+                        "{at}: `{field}` belongs on [tools.\"{base}\"]; every action of the tool shares it"
+                    )));
+                }
+            }
+            let mut t = self.tool(&at, t, inherit)?;
+            t.select = None;
+            add_selector_hint(&mut t.hints, arg);
             tools.insert(name, t);
         }
         let mut agents = BTreeMap::new();
@@ -346,8 +461,33 @@ impl Validator<'_> {
                     agent.escape_debug(),
                     name.escape_debug()
                 );
-                check_tool_name(&name, &upstreams, &at)?;
+                if name.contains('[') {
+                    if !tools.contains_key(&name) {
+                        return Err(err(format!(
+                            "{at}: there is no [tools.\"{}\"] for this action",
+                            name.escape_debug()
+                        )));
+                    }
+                } else {
+                    check_tool_name(&name, &upstreams, &at)?;
+                }
                 overrides.insert(name, self.agent_override(&at, o)?);
+            }
+            // An agent's override of a tool covers every action of it, so choosing an action
+            // never escapes it; the action's own override, if any, wins field by field.
+            for key in tools.keys().filter(|k| k.contains('[')) {
+                let Some(base) = key.split_once('[').and_then(|(b, _)| overrides.get(b)) else {
+                    continue;
+                };
+                let merged = match overrides.get(key) {
+                    Some(own) => AgentOverride {
+                        policy: own.policy.or(base.policy),
+                        approvers: own.approvers.clone().or_else(|| base.approvers.clone()),
+                        requirement: own.requirement.or(base.requirement),
+                    },
+                    None => base.clone(),
+                };
+                overrides.insert(key.clone(), merged);
             }
             agents.insert(agent, overrides);
         }
@@ -616,10 +756,10 @@ impl Validator<'_> {
         &self,
         at: &str,
         t: raw::Tool,
-        default: DefaultPolicy,
+        inherit: &ToolPolicy,
     ) -> Result<ToolPolicy, ConfigError> {
         let policy = match t.policy.as_deref() {
-            None => default.into(),
+            None => inherit.policy,
             Some(p) => parse_policy(p).ok_or_else(|| {
                 err(format!(
                     "{at} policy = {p:?} is not a policy; use \"allow\", \"approve\" or \"deny\""
@@ -627,7 +767,8 @@ impl Validator<'_> {
             })?,
         };
         let justification_required = match t.justification.as_deref() {
-            None | Some("optional") => false,
+            None => inherit.justification_required,
+            Some("optional") => false,
             Some("required") => true,
             Some(other) => {
                 return Err(err(format!(
@@ -635,7 +776,11 @@ impl Validator<'_> {
                 )));
             }
         };
-        let mut hints = Vec::new();
+        let mut hints = if t.highlight.is_some() {
+            Vec::new()
+        } else {
+            inherit.hints.clone()
+        };
         for (path, fmt) in t.highlight.unwrap_or_default() {
             let p = parse_path(&path).ok_or_else(|| {
                 err(format!(
@@ -649,9 +794,12 @@ impl Validator<'_> {
             })?;
             hints.push((p, f));
         }
-        let approvers = approver_names(at, t.approvers.unwrap_or_default())?;
+        let approvers = match t.approvers {
+            None => inherit.approvers.clone(),
+            Some(a) => approver_names(at, a)?,
+        };
         let requirement = match t.require {
-            None => Requirement::AnyOf,
+            None => inherit.requirement,
             Some(v) => parse_requirement(at, &v)?,
         };
         if let Requirement::KOfN(k) = requirement
@@ -664,7 +812,8 @@ impl Validator<'_> {
             )));
         }
         let deny_rule = match t.on_deny.as_deref() {
-            None | Some("any") => DenyRule::AnyDenial,
+            None => inherit.deny_rule,
+            Some("any") => DenyRule::AnyDenial,
             Some("when_unreachable") => DenyRule::WhenUnreachable,
             Some(other) => {
                 return Err(err(format!(
@@ -673,7 +822,7 @@ impl Validator<'_> {
             }
         };
         let expiry = match t.expiry {
-            None => None,
+            None => inherit.expiry,
             Some(e) => Some(parse_duration(&e).filter(|d| !d.is_zero()).ok_or_else(|| {
                 err(format!(
                     "{at} expiry = {e:?} is not a duration like \"10m\" (ms, s, m, h or d)"
@@ -681,7 +830,8 @@ impl Validator<'_> {
             })?),
         };
         let mode = match t.mode.as_deref() {
-            None | Some("wait") => Mode::Wait,
+            None => inherit.mode,
+            Some("wait") => Mode::Wait,
             Some("pending_retry") => Mode::PendingRetry,
             Some(other) => {
                 return Err(err(format!(
@@ -689,7 +839,9 @@ impl Validator<'_> {
                 )));
             }
         };
-        let filter_output = t.filter_output.unwrap_or_default();
+        let filter_output = t
+            .filter_output
+            .unwrap_or_else(|| inherit.filter_output.clone());
         if let Some(bad) = filter_output
             .iter()
             .find(|p| p.is_empty() || p.split('.').any(str::is_empty))
@@ -699,11 +851,24 @@ impl Validator<'_> {
             )));
         }
         let filter_action = match t.filter_action.as_deref() {
-            None | Some("strip") => FilterAction::Strip,
+            None => inherit.filter_action,
+            Some("strip") => FilterAction::Strip,
             Some("redact") => FilterAction::Redact,
             Some(other) => {
                 return Err(err(format!(
                     "{at} filter_action = {other:?}; use \"strip\" or \"redact\""
+                )));
+            }
+        };
+        let select = match t.select {
+            None => inherit.select.clone(),
+            Some(arg) if valid_selector(&arg) => {
+                add_selector_hint(&mut hints, &arg);
+                Some(arg)
+            }
+            Some(arg) => {
+                return Err(err(format!(
+                    "{at} select = {arg:?} must name one top-level argument using only A–Z, a–z, 0–9, `_`, `.` and `-`"
                 )));
             }
         };
@@ -718,6 +883,7 @@ impl Validator<'_> {
             mode,
             filter_output,
             filter_action,
+            select,
         })
     }
 
@@ -788,6 +954,29 @@ fn check_tool_name(
         )));
     }
     Ok(())
+}
+
+/// `stripe__call_write_tool[name=spend-request_retrieve]` → base, argument and value.
+fn split_key(name: &str) -> Option<(&str, &str, &str)> {
+    let (base, rest) = name.split_once('[')?;
+    let (arg, value) = rest.strip_suffix(']')?.split_once('=')?;
+    valid_selector(arg).then_some((base, arg, value))
+}
+
+fn valid_selector(arg: &str) -> bool {
+    !arg.is_empty()
+        && arg
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-'))
+}
+
+/// The approver sees which action a call asks for first: the selected argument leads the
+/// highlighted fields, as text, unless the owner already highlights it.
+fn add_selector_hint(hints: &mut Vec<(Vec<PathElem>, Format)>, arg: &str) {
+    let path = vec![PathElem::Key(arg.to_owned())];
+    if !hints.iter().any(|(p, _)| *p == path) {
+        hints.insert(0, (path, Format::Text));
+    }
 }
 
 fn parse_policy(p: &str) -> Option<Policy> {

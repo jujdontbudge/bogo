@@ -99,6 +99,7 @@ pub struct Tool {
     pub mode: Option<String>,
     pub filter_output: Option<Vec<String>>,
     pub filter_action: Option<String>,
+    pub select: Option<String>,
 }
 
 #[derive(Deserialize)]
