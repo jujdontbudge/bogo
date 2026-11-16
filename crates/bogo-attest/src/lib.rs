@@ -60,8 +60,11 @@ pub struct Verified {
     pub public_key: Vec<u8>,
     pub receipt: Vec<u8>,
     pub environment: Environment,
-    pub validation_category: u32,
-    pub bundle_version: String,
+    /// Present only when the authenticator data carries Apple's extension map.
+    /// Real App Attest attestations end at the credential key, so this is
+    /// normally `None`; the environment still comes from the AAGUID.
+    pub validation_category: Option<u32>,
+    pub bundle_version: Option<String>,
 }
 fn field<'a>(v: &'a Value, key: &str, step: Step) -> Result<&'a Value> {
     let Value::Map(m) = v else {
@@ -318,8 +321,10 @@ fn cose_field(v: &Value, key: i128) -> Result<&Value> {
     Ok(value)
 }
 /// The embedded COSE EC2 key must agree with the certified P-256 key.
-/// Returns the extension dictionary following that key (flag ED required).
-pub fn credential_key(auth: &[u8], key: &[u8]) -> Result<Value> {
+/// Returns the extension dictionary following that key when flag ED is set.
+/// Real App Attest authenticator data (164 bytes, flags 0x40) ends right after
+/// the key; with ED clear, nothing may follow it.
+pub fn credential_key(auth: &[u8], key: &[u8]) -> Result<Option<Value>> {
     let step = Step::CredentialKey;
     let remaining = auth.get(87..).ok_or(Error { step })?;
     let (cose, n) = read_value(remaining, step)?;
@@ -329,15 +334,20 @@ pub fn credential_key(auth: &[u8], key: &[u8]) -> Result<Value> {
         || key.len() != 65
         || binary(cose_field(&cose, -2)?, step)? != &key[1..33]
         || binary(cose_field(&cose, -3)?, step)? != &key[33..65]
-        || auth[32] & 0x80 == 0
     {
         return reject(step);
+    }
+    if auth[32] & 0x80 == 0 {
+        if n != remaining.len() {
+            return reject(step);
+        }
+        return Ok(None);
     }
     let (extensions, used) = read_value(&remaining[n..], step)?;
     if n + used != remaining.len() || !extensions.is_map() {
         return reject(step);
     }
-    Ok(extensions)
+    Ok(Some(extensions))
 }
 /// Step 10: Apple launch category; production accepts TestFlight/App Store,
 /// development accepts the development signing identity category only.
@@ -383,9 +393,13 @@ pub fn verify(
     counter(&a.auth_data)?;
     let environment = aaguid(&a.auth_data, policy.environments)?;
     credential_id(&a.auth_data, id)?;
-    let extensions = credential_key(&a.auth_data, &public_key)?;
-    let validation_category = validation_category(&extensions, environment)?;
-    let bundle_version = bundle_version(&extensions, policy.bundle_versions)?;
+    let (validation_category, bundle_version) = match credential_key(&a.auth_data, &public_key)? {
+        Some(extensions) => (
+            Some(validation_category(&extensions, environment)?),
+            Some(bundle_version(&extensions, policy.bundle_versions)?),
+        ),
+        None => (None, None),
+    };
     Ok(Verified {
         public_key,
         receipt: a.receipt,
